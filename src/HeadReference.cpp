@@ -53,7 +53,7 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_INFO_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
+    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
 
     // abort goal with same priority
     abortGoalWithSamePriority(gh.getGoal()->priority);
@@ -83,6 +83,22 @@ void HeadReference::abortGoalWithSamePriority(unsigned int priority)
     }
 }
 
+void HeadReference::checkTimeOuts()
+{
+    std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
+    for(; it != goal_handles_.end(); ++it) {
+        double end_time = it->getGoal()->end_time;
+
+        if (end_time > 0 && ros::Time::now().toSec() > end_time)
+        {
+            head_ref::HeadReferenceResult result;
+            result.error = "TimeOut exceeded!";
+            it->setAborted(result);
+            goal_handles_.erase(it);
+        }
+    }
+}
+
 void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
     ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
@@ -96,6 +112,8 @@ void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 
 void HeadReference::generateReferences()
 {
+    checkTimeOuts();
+
     head_ref::HeadReferenceGoal goal;
 
     if (goal_handles_.size() > 0)
@@ -242,6 +260,8 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
     marker_pub_.publish(marker);
 
 }
+
+
 
 
 

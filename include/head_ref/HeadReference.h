@@ -38,6 +38,8 @@ class HeadReference
         bool targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt);
         void publishMarker(const tf::Stamped<tf::Point>& target);
 
+        void checkTimeOuts();
+
         HeadReferenceActionServer* as_;
         std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
 
