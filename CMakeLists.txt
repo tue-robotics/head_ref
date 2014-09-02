@@ -63,3 +63,7 @@ add_dependencies(head_ref               ${PROJECT_NAME}_gencpp)
 add_executable(test_client              test/client.cpp)
 target_link_libraries(test_client       head_reference)
 add_dependencies(head_ref               ${PROJECT_NAME}_gencpp)
+
+# CLIENTS
+add_executable(look_around_client           clients/look_around_client.cpp)
+target_link_libraries(look_around_client    head_reference)

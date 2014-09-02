@@ -53,7 +53,7 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
+    ROS_INFO_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
 
     // abort goal with same priority
     abortGoalWithSamePriority(gh.getGoal()->priority);
