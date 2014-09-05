@@ -43,6 +43,8 @@ int main(int argc, char** argv){
     n.param("pan_vel", pan_vel, .5);
     n.param("tilt_vel", tilt_vel, .5);
 
+    ROS_INFO("Look around client initialized on priority 10 with velocity (%3f,%3f)", pan_vel, tilt_vel);
+
     if (n.getParam("states/pan", pans) && n.getParam("states/tilt", tilts) && pans.size() == tilts.size() && pans.size() > 0)
     {
         ros::Timer timer = n.createTimer(ros::Duration(duration), timerCallback);
