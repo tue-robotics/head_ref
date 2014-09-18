@@ -5,5 +5,5 @@ states:
 duration: 5.0
 priority: 10
 
-pan_vel: 0.02
-tilt_vel: 0.02
+pan_vel: 0.2
+tilt_vel: 0.2
