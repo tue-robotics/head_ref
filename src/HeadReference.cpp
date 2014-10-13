@@ -85,8 +85,8 @@ void HeadReference::abortGoalWithSamePriority(unsigned int priority)
 
 void HeadReference::checkTimeOuts()
 {
-    std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
-    for(; it != goal_handles_.end(); ++it) {
+    for(std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin(); it != goal_handles_.end();)
+    {
         double end_time = it->getGoal()->end_time;
 
         if (end_time > 0 && ros::Time::now().toSec() > end_time)
@@ -94,7 +94,11 @@ void HeadReference::checkTimeOuts()
             head_ref::HeadReferenceResult result;
             result.error = "TimeOut exceeded!";
             it->setAborted(result);
-            goal_handles_.erase(it);
+            it = goal_handles_.erase(it);
+        }
+        else
+        {
+            ++it;
         }
     }
 }
