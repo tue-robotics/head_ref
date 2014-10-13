@@ -2,8 +2,13 @@
 
 <launch>
 
+    <arg name="gdb" default="false"/>
+    <arg if="$(arg gdb)" name="launch-prefix" value="gdb -ex run --args"/>
+    <arg unless="$(arg gdb)" name="launch-prefix" value=""/>
+
+
     <!-- HEAD REF SERVER -->
-    <node name="head_ref" pkg="head_ref" type="head_ref" output="screen" />
+    <node name="head_ref" pkg="head_ref" type="head_ref" output="screen" launch-prefix="$(arg launch-prefix)"/>
 
     <node name="head_ref_client_look_around" pkg="head_ref" type="look_around_client" output="screen">
         <rosparam file="$(find head_ref)/params/look_around.yaml" command="load" />
