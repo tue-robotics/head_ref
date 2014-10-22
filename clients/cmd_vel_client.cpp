@@ -15,6 +15,9 @@ std::string frame;
 
 void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
 {
+    if (tw->linear.x == 0.0 && tw->linear.y == 0 && tw->angular.z == 0)
+        return;
+
     // send a goal to the action
     head_ref::HeadReferenceGoal goal;
     goal.target_point.header.frame_id = frame;
