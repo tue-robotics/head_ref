@@ -28,7 +28,7 @@ HeadReference::HeadReference() :
     measurement_sub_ = nh.subscribe("/amigo/neck/measurements", 1, &HeadReference::measurementCallBack, this);
 
     // Setup action server
-    as_ = new HeadReferenceActionServer(nh,"HeadReference",false);
+    as_ = new HeadReferenceActionServer(nh,"head_reference",false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
 

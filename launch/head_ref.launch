@@ -11,7 +11,11 @@
     <node name="head_ref" pkg="head_ref" type="head_ref" output="screen" launch-prefix="$(arg launch-prefix)"/>
 
     <node name="head_ref_client_look_around" pkg="head_ref" type="look_around_client" output="screen">
-        <rosparam file="$(find head_ref)/params/look_around.yaml" command="load" />
+        <rosparam file="$(find head_ref)/parameters/look_around.yaml" command="load" />
+    </node>
+    <node name="head_ref_client_cmd_vel" pkg="head_ref" type="cmd_vel_client" output="screen">
+        <rosparam file="$(find head_ref)/parameters/cmd_vel.yaml" command="load" />
+        <remap from="/cmd_vel" to="/amigo/base/references" />
     </node>
 
 </launch>
