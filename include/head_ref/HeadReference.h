@@ -49,6 +49,8 @@ class HeadReference
         tf::TransformListener* tf_listener_;
 
         double current_pan_, current_tilt_, goal_error_tolerance_;
+        
+        std::string tf_prefix_;
 
 };
 

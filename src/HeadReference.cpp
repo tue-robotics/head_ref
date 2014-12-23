@@ -21,11 +21,11 @@ HeadReference::HeadReference() :
     tf_listener_ = new tf::TransformListener(ros::Duration(10.0));
 
     // ROS publishers
-    head_pub_ = nh.advertise<sensor_msgs::JointState>("/amigo/neck/references", 50);
+    head_pub_ = nh.advertise<sensor_msgs::JointState>("/neck/references", 50);
     marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
 
     // ROS subscribers
-    measurement_sub_ = nh.subscribe("/amigo/neck/measurements", 1, &HeadReference::measurementCallBack, this);
+    measurement_sub_ = nh.subscribe("/neck/measurements", 1, &HeadReference::measurementCallBack, this);
 
     // Setup action server
     as_ = new HeadReferenceActionServer(nh,"head_reference",false);
@@ -34,6 +34,12 @@ HeadReference::HeadReference() :
 
     // Start action server
     as_->start();
+    
+    // Get tf prefix
+    ros::NodeHandle n("~");
+    n.param<std::string>("tf_prefix", tf_prefix_, "");
+    tf_prefix_ = "/" + tf_prefix_;
+    ROS_WARN("TF Prefix = %s", tf_prefix_.c_str());
 }
 
 HeadReference::~HeadReference()
@@ -170,7 +176,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
 {
     tf::Stamped<tf::Point> target_HEAD_MOUNT;
     try {
-        tf_listener_->transformPoint("/amigo/head_mount", target, target_HEAD_MOUNT);
+        tf_listener_->transformPoint(tf_prefix_+"/head_mount", target, target_HEAD_MOUNT);
     } catch(tf::TransformException& ex){
         ROS_ERROR("%s", ex.what());
         return false;
@@ -178,7 +184,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
 
     tf::Stamped<tf::Point> target_NECK_TILT;
     try {
-        tf_listener_->transformPoint("/amigo/neck_tilt", target, target_NECK_TILT);
+        tf_listener_->transformPoint(tf_prefix_+"/neck_tilt", target, target_NECK_TILT);
     } catch(tf::TransformException& ex){
         ROS_ERROR("%s", ex.what());
         return false;
@@ -187,7 +193,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
     double head_mount_to_neck;
     try {
         tf::StampedTransform transform;
-        tf_listener_->lookupTransform("/amigo/head_mount", "/amigo/neck_tilt", ros::Time(), transform);
+        tf_listener_->lookupTransform(tf_prefix_+"/head_mount", tf_prefix_+"/neck_tilt", ros::Time(), transform);
         head_mount_to_neck = transform.getOrigin().getX();
     } catch(tf::TransformException& ex){
         ROS_ERROR("%s", ex.what());
@@ -197,7 +203,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
     double neck_to_cam_vert;
     try {
         tf::StampedTransform transform;
-        tf_listener_->lookupTransform("/amigo/neck_tilt", "/amigo/top_kinect/openni_camera", ros::Time(), transform);
+        tf_listener_->lookupTransform(tf_prefix_+"/neck_tilt", tf_prefix_+"/top_kinect/openni_camera", ros::Time(), transform);
         neck_to_cam_vert = transform.getOrigin().getZ();
     } catch(tf::TransformException& ex){
         ROS_ERROR("%s", ex.what());

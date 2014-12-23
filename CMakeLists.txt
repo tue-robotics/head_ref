@@ -34,7 +34,7 @@ generate_messages(
 ###################################
 catkin_package(
     INCLUDE_DIRS include
-    CATKIN_DEPENDS actionlib actionlib_msgs geometry_msgs std_msgs 
+    CATKIN_DEPENDS actionlib actionlib_msgs geometry_msgs std_msgs message_runtime
 )
 
 ###########
