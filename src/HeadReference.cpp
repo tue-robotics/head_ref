@@ -39,7 +39,7 @@ HeadReference::HeadReference() :
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
     tf_prefix_ = "/" + tf_prefix_;
-    ROS_WARN("TF Prefix = %s", tf_prefix_.c_str());
+
 }
 
 HeadReference::~HeadReference()
