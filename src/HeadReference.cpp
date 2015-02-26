@@ -16,19 +16,20 @@ HeadReference::HeadReference() :
     current_tilt_(0),
     goal_error_tolerance_(0.05)
 {
-    ros::NodeHandle nh;
+    ros::NodeHandle nh("~");
+    ros::NodeHandle gh;
 
     tf_listener_ = new tf::TransformListener(ros::Duration(10.0));
 
     // ROS publishers
-    head_pub_ = nh.advertise<sensor_msgs::JointState>("/neck/references", 50);
+    head_pub_ = gh.advertise<sensor_msgs::JointState>("neck/references", 50);
     marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
 
     // ROS subscribers
-    measurement_sub_ = nh.subscribe("/neck/measurements", 1, &HeadReference::measurementCallBack, this);
+    measurement_sub_ = gh.subscribe("neck/measurements", 1, &HeadReference::measurementCallBack, this);
 
     // Setup action server
-    as_ = new HeadReferenceActionServer(nh,"head_reference",false);
+    as_ = new HeadReferenceActionServer(nh,"action_server",false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
 

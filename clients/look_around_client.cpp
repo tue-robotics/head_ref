@@ -49,7 +49,7 @@ int main(int argc, char** argv){
     {
         ros::Timer timer = n.createTimer(ros::Duration(duration), timerCallback);
 
-        ac = new HeadReferenceActionClient("head_reference");
+        ac = new HeadReferenceActionClient("head_ref/action_server");
 
         ros::spin();
     }

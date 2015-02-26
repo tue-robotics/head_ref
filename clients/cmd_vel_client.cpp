@@ -74,7 +74,7 @@ int main(int argc, char** argv){
 
     ros::Subscriber s = n.subscribe<geometry_msgs::Twist>("/cmd_vel", 1, &cmdVelCallback);
 
-    ac = new HeadReferenceActionClient("/head_reference");
+    ac = new HeadReferenceActionClient("head_ref/action_server");
 
     ros::spin();
 
