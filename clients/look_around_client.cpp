@@ -52,7 +52,6 @@ void lookAtCallback(const ros::TimerEvent& e)
     goal.target_point = goal_pt;
 
     HeadReferenceActionClient::GoalHandle gh = ac->sendGoal(goal);
-    std::cout << "Sent goal to (" << goal_pt.point.x << "," << goal_pt.point.y << "," << goal_pt.point.z << ")" << std::endl;
 
     if (state + 1 == xs.size())
         state = 0;
