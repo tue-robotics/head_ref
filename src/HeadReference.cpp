@@ -26,7 +26,8 @@ HeadReference::HeadReference() :
     marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
 
     // ROS subscribers
-    measurement_sub_ = gh.subscribe("neck/measurements", 1, &HeadReference::measurementCallBack, this);
+    measurement_sub_ = gh.subscribe("neck/measurements", 5, &HeadReference::measurementCallBack, this);
+    // measurements @ 100 Hz will need a queue of 100/25=4
 
     // Setup action server
     as_ = new HeadReferenceActionServer(nh,"action_server",false);
