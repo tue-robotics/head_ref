@@ -149,8 +149,12 @@ void HeadReference::generateReferences()
 
             fb.at_setpoint = true;
             gh.publishFeedback(fb);
-
             return;
+        }
+        else
+        {
+            fb.at_setpoint = false;
+            gh.publishFeedback(fb);
         }
     }
     else
