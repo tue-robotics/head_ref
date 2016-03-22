@@ -40,6 +40,8 @@ HeadReference::HeadReference() :
     // Get tf prefix
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
+    n.param<double>("default_pan", default_pan_, 0);
+    n.param<double>("default_tilt", default_tilt_, 0);
     tf_prefix_ = "/" + tf_prefix_;
 
 }

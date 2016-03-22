@@ -51,6 +51,7 @@ class HeadReference
         double current_pan_, current_tilt_, goal_error_tolerance_;
         
         std::string tf_prefix_;
+        double default_pan_, default_tilt_;
 
 };
 
