@@ -4,13 +4,6 @@ bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceAction
     return a.getGoal()->priority < b.getGoal()->priority;
 }
 
-void getResetPositionGoal(head_ref::HeadReferenceGoal& goal)
-{
-    goal.goal_type = head_ref::HeadReferenceGoal::PAN_TILT;
-    goal.pan = 0;
-    goal.tilt = 0.1;
-}
-
 HeadReference::HeadReference() :
     current_pan_(0),
     current_tilt_(0),
@@ -161,7 +154,9 @@ void HeadReference::generateReferences()
     }
     else
     {
-        getResetPositionGoal(goal);
+        goal.goal_type = head_ref::HeadReferenceGoal::PAN_TILT;
+        goal.pan = default_pan_;
+        goal.tilt = default_tilt_;
     }
 
     ROS_DEBUG("Current head goal (pan/tilt): %.3f,%.3f",goal.pan,goal.tilt);
