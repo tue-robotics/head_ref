@@ -10,7 +10,7 @@ typedef actionlib::ActionClient<head_ref::HeadReferenceAction> HeadReferenceActi
 HeadReferenceActionClient* ac;
 
 int priority;
-double pan_vel, tilt_vel;
+double pan_vel, tilt_vel, dt;
 std::string frame;
 
 void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
@@ -23,7 +23,6 @@ void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
     goal.target_point.header.frame_id = frame;
     goal.target_point.header.stamp = ros::Time::now();
 
-    double dt = 3; //! TODO: Hardcoded values in this function
     double x = dt * (tw->linear.x * cos(tw->angular.z) + tw->linear.y * cos(PI/2 + tw->angular.z));
     double y = dt * (tw->linear.x * sin(tw->angular.z) + tw->linear.y * sin(PI/2 + tw->angular.z));
 
@@ -68,6 +67,7 @@ int main(int argc, char** argv){
     n.param("priority", priority, 10);
     n.param("pan_vel", pan_vel, .5);
     n.param("tilt_vel", tilt_vel, .5);
+    n.param("dt", dt, 2.0);
     n.param("frame", frame, std::string("/base_link"));
 
     ROS_INFO("Cmd vel client on frame '%s' initialized on priority %d with velocity (%3f,%3f)", frame.c_str(), priority, pan_vel, tilt_vel);
