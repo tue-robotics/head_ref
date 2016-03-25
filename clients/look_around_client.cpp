@@ -1,5 +1,6 @@
 #include "actionlib/client/action_client.h"
 #include "head_ref/HeadReferenceAction.h"
+#include <geometry_msgs/Twist.h>
 
 typedef actionlib::ActionClient<head_ref::HeadReferenceAction> HeadReferenceActionClient;
 
@@ -8,14 +9,28 @@ typedef actionlib::ActionClient<head_ref::HeadReferenceAction> HeadReferenceActi
 HeadReferenceActionClient* ac;
 
 int priority;
-double duration, pan_vel, tilt_vel;
+double duration, pan_vel, tilt_vel, cmd_vel_timeout;
 std::vector<float> pans, tilts;
 std::vector<float> xs, ys, zs;
 std::string frame_id;
 unsigned int state = 0;
+ros::Time last_cmd_vel;
+
+HeadReferenceActionClient::GoalHandle gh;
+
+void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
+{
+    last_cmd_vel = ros::Time::now();
+}
 
 void panTiltCallback(const ros::TimerEvent& e)
 {
+    if ((ros::Time::now() - last_cmd_vel).toSec() < cmd_vel_timeout)
+    {
+        gh.cancel();
+        return;
+    }
+
     // send a goal to the action
     head_ref::HeadReferenceGoal goal;
 
@@ -26,7 +41,7 @@ void panTiltCallback(const ros::TimerEvent& e)
     goal.pan = pans[state];
     goal.tilt = tilts[state];
 
-    HeadReferenceActionClient::GoalHandle gh = ac->sendGoal(goal);
+    gh = ac->sendGoal(goal);
 
     if (state + 1 == pans.size())
         state = 0;
@@ -36,6 +51,12 @@ void panTiltCallback(const ros::TimerEvent& e)
 
 void lookAtCallback(const ros::TimerEvent& e)
 {
+    if ((ros::Time::now() - last_cmd_vel).toSec() < cmd_vel_timeout)
+    {
+        gh.cancel();
+        return;
+    }
+    
     // send a goal to the action
     head_ref::HeadReferenceGoal goal;
     geometry_msgs::PointStamped goal_pt;
@@ -51,7 +72,7 @@ void lookAtCallback(const ros::TimerEvent& e)
     goal.tilt_vel = tilt_vel;
     goal.target_point = goal_pt;
 
-    HeadReferenceActionClient::GoalHandle gh = ac->sendGoal(goal);
+    gh = ac->sendGoal(goal);
 
     if (state + 1 == xs.size())
         state = 0;
@@ -69,6 +90,9 @@ int main(int argc, char** argv){
     n.param("priority", priority, 10);
     n.param("pan_vel", pan_vel, .5);
     n.param("tilt_vel", tilt_vel, .5);
+    n.param("cmd_vel_timeout", cmd_vel_timeout, 10.0);
+
+    ros::Subscriber s = n.subscribe<geometry_msgs::Twist>("/cmd_vel", 1, &cmdVelCallback);
 
     ROS_INFO("Look around client initialized on priority 10 with velocity (%3f,%3f)", pan_vel, tilt_vel);
 
