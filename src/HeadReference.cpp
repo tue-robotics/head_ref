@@ -58,7 +58,7 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
     ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
 
-    if (gh.getGoal()->priority == 2 && gh.getGoal()->goal_type == head_ref::HeadReferenceGoal::LOOKAT)
+    if (gh.getGoal()->priority == 0 && gh.getGoal()->goal_type == head_ref::HeadReferenceGoal::LOOKAT && gh.getGoal()->tilt_vel == -1)
     {
         // Update pan and tilt
         tf::Stamped<tf::Point> tp;
@@ -170,8 +170,11 @@ void HeadReference::generateReferences()
 
     ROS_DEBUG("Current head goal (pan/tilt): %.3f,%.3f",goal.pan,goal.tilt);
 
-    if (goal.priority == 2 && goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT)
+    if (goal.priority == 0 && goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT && goal.tilt_vel == -1)
+    {
         goal = ed_goal_;
+        goal.goal_type = head_ref::HeadReferenceGoal::PAN_TILT;
+    }
 
     // populate msg
     sensor_msgs::JointState head_ref;
