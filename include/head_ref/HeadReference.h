@@ -53,7 +53,7 @@ class HeadReference
         std::string tf_prefix_;
         double default_pan_, default_tilt_;
 
-        head_ref::HeadReferenceGoal ed_goal_;
+        head_ref::HeadReferenceGoal lookat_and_freeze_goal_;
 };
 
 #endif /* HEAD_REF_HEAD_REFERENCES_H_ */

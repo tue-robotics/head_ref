@@ -1,6 +1,7 @@
 #goal definition
 byte LOOKAT = 0
 byte PAN_TILT = 1
+byte LOOKAT_AND_FREEZE = 2
 
 byte goal_type   # either LOOKAT or PAN_TILT
 
