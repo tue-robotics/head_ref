@@ -59,13 +59,13 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
 
     // ROBOCUP HACK
-    if (gh.getGoal()->priority == 0 && gh.getGoal()->goal_type == head_ref::HeadReferenceGoal::LOOKAT && gh.getGoal()->tilt_vel == -1)
+    if (gh.getGoal()->goal_type == head_ref::HeadReferenceGoal::LOOKAT_AND_FREEZE)
     {
         // Update pan and tilt
         tf::Stamped<tf::Point> tp;
         tf::pointStampedMsgToTF(gh.getGoal()->target_point,tp);
         tp.stamp_ = ros::Time();
-        targetToPanTilt(tp, ed_goal_.pan, ed_goal_.tilt);
+        targetToPanTilt(tp, lookat_and_freeze_goal_.pan, lookat_and_freeze_goal_.tilt);
     }
 
     // abort goal with same priority
@@ -172,9 +172,9 @@ void HeadReference::generateReferences()
     ROS_DEBUG("Current head goal (pan/tilt): %.3f,%.3f",goal.pan,goal.tilt);
 
     // ROBOCUP HACK
-    if (goal.priority == 0 && goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT && goal.tilt_vel == -1)
+    if (goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT_AND_FREEZE)
     {
-        goal = ed_goal_;
+        goal = lookat_and_freeze_goal_;
         goal.goal_type = head_ref::HeadReferenceGoal::PAN_TILT;
         goal.tilt_vel = 1.0;
         goal.pan_vel = 1.0;
