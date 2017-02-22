@@ -144,7 +144,12 @@ void HeadReference::generateReferences()
             tf::Stamped<tf::Point> tp;
             tf::pointStampedMsgToTF(goal.target_point,tp);
             tp.stamp_ = ros::Time();
-            targetToPanTilt(tp, goal.pan, goal.tilt);
+            if (!targetToPanTilt(tp, goal.pan, goal.tilt))
+            {
+              gh.setAborted();
+              goal_handles_.erase (goal_handles_.begin(), goal_handles_.begin()+1);
+              return;
+            }
             publishMarker(tp);
         }
 
