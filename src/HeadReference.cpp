@@ -14,14 +14,6 @@ HeadReference::HeadReference() :
 
     tf_listener_ = new tf::TransformListener(ros::Duration(10.0));
 
-    // ROS publishers
-    head_pub_ = gh.advertise<sensor_msgs::JointState>("neck/references", 50);
-    marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
-
-    // ROS subscribers
-    measurement_sub_ = gh.subscribe("neck/measurements", 5, &HeadReference::measurementCallBack, this);
-    // measurements @ 100 Hz will need a queue of 100/25=4
-
     // Setup action server
     as_ = new HeadReferenceActionServer(nh,"action_server",false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
@@ -35,7 +27,24 @@ HeadReference::HeadReference() :
     n.param<std::string>("tf_prefix", tf_prefix_, "");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
+    n.param<bool>("float_topics", float_topics_, false);
     tf_prefix_ = "/" + tf_prefix_;
+
+    // ROS publishers
+    if ( float_topics_ )
+    {
+        pan_pub_ = gh.advertise<std_msgs::Float64>("pan_controller/command", 1);
+        tilt_pub_ = gh.advertise<std_msgs::Float64>("tilt_controller/command", 1);
+    }
+    else
+    {
+        head_pub_ = gh.advertise<sensor_msgs::JointState>("neck/references", 50);
+    }
+    marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
+
+    // ROS subscribers
+    measurement_sub_ = gh.subscribe("neck/measurements", 5, &HeadReference::measurementCallBack, this);
+    // measurements @ 100 Hz will need a queue of 100/25=4
 
 }
 
@@ -185,18 +194,31 @@ void HeadReference::generateReferences()
         goal.pan_vel = 1.0;
     }
 
-    // populate msg
-    sensor_msgs::JointState head_ref;
-    head_ref.name.push_back("neck_pan_joint");
-    head_ref.name.push_back("neck_tilt_joint");
-
-    head_ref.position.push_back(goal.pan);
-    head_ref.position.push_back(goal.tilt);
-    head_ref.velocity.push_back(goal.pan_vel);
-    head_ref.velocity.push_back(goal.tilt_vel);
-
     //publish angles over ROS
-    head_pub_.publish(head_ref);
+    if ( float_topics_ )
+    {
+        // populate msgs
+        std_msgs::Float64 pan_ref, tilt_ref;
+        pan_ref.data = goal.pan;
+        tilt_ref.data = goal.tilt;
+
+        pan_pub_.publish(pan_ref);
+        tilt_pub_.publish(tilt_ref);
+    }
+    else
+    {
+        // populate msg
+        sensor_msgs::JointState head_ref;
+        head_ref.name.push_back("neck_pan_joint");
+        head_ref.name.push_back("neck_tilt_joint");
+
+        head_ref.position.push_back(goal.pan);
+        head_ref.position.push_back(goal.tilt);
+        head_ref.velocity.push_back(goal.pan_vel);
+        head_ref.velocity.push_back(goal.tilt_vel);
+
+        head_pub_.publish(head_ref);
+    }
 }
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
