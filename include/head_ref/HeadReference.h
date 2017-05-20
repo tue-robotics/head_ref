@@ -8,6 +8,7 @@
 
 // Messages
 #include <sensor_msgs/JointState.h>
+#include <std_msgs/Float64.h>
 #include <visualization_msgs/Marker.h>
 
 // Actionlib
@@ -43,7 +44,8 @@ class HeadReference
         HeadReferenceActionServer* as_;
         std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
 
-        ros::Publisher head_pub_, marker_pub_;
+        bool float_topics_;
+        ros::Publisher head_pub_, pan_pub_, tilt_pub_, marker_pub_;
         ros::Subscriber measurement_sub_;
 
         tf::TransformListener* tf_listener_;
