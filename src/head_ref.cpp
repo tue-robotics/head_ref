@@ -11,7 +11,7 @@ int main(int argc, char** argv){
 
 	while (nh.ok()) {
 		ros::spinOnce();
-        hr.generateReferences();
+//        hr.generateReferences();
 		r.sleep();
 	}
 

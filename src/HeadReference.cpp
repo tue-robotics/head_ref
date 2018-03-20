@@ -1,4 +1,5 @@
 #include "head_ref/HeadReference.h"
+#include <trajectory_msgs/JointTrajectoryPoint.h>
 
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
@@ -7,7 +8,8 @@ bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceAction
 HeadReference::HeadReference() :
     current_pan_(0),
     current_tilt_(0),
-    goal_error_tolerance_(0.05)
+    goal_error_tolerance_(0.05),
+    joint_trajectory_ac_("body/joint_trajectory_action", true)
 {
     ros::NodeHandle nh("~");
     ros::NodeHandle gh;
@@ -22,24 +24,18 @@ HeadReference::HeadReference() :
     // Start action server
     as_->start();
     
-    // Get tf prefix
+    // Get parameters
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
+    n.param<std::string>("pan_joint_name", pan_joint_name_, "neck_pan_joint");
+    n.param<std::string>("tilt_joint_name", tilt_joint_name_, "neck_tilt_joint");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
     tf_prefix_ = "/" + tf_prefix_;
 
-    // ROS publishers
-    if ( float_topics_ )
-    {
-        pan_pub_ = gh.advertise<std_msgs::Float64>("pan_controller/command", 1);
-        tilt_pub_ = gh.advertise<std_msgs::Float64>("tilt_controller/command", 1);
-    }
-    else
-    {
-        head_pub_ = gh.advertise<sensor_msgs::JointState>("neck/references", 50);
-    }
+    joint_trajectory_ac_.waitForServer();
+
     marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
 
     // ROS subscribers
@@ -50,14 +46,14 @@ HeadReference::HeadReference() :
 
 HeadReference::~HeadReference()
 {
-
+    joint_trajectory_ac_.cancelAllGoals();
 }
 
 void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
     for(unsigned int i = 0; i < msg.name.size(); ++i) {
-        if (msg.name[i] == "neck_pan_joint") {
+        if (msg.name[i] == pan_joint_name_) {
             current_pan_ = msg.position[i];
-        } else if  (msg.name[i] == "neck_tilt_joint") {
+        } else if  (msg.name[i] == tilt_joint_name_) {
             current_tilt_ = msg.position[i];
         }
     }
@@ -88,6 +84,8 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 
     // Sort goal handles on priority
     std::sort(goal_handles_.begin(),goal_handles_.end(),compByPriority);
+
+    generateReferences();
 }
 
 void HeadReference::abortGoalWithSamePriority(unsigned int priority)
@@ -164,7 +162,8 @@ void HeadReference::generateReferences()
 
         // Check whether we are there
         head_ref::HeadReferenceFeedback fb;
-        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_) {
+        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_)
+        {
 
             fb.at_setpoint = true;
             gh.publishFeedback(fb);
@@ -194,31 +193,35 @@ void HeadReference::generateReferences()
         goal.pan_vel = 1.0;
     }
 
-    //publish angles over ROS
-    if ( float_topics_ )
-    {
-        // populate msgs
-        std_msgs::Float64 pan_ref, tilt_ref;
-        pan_ref.data = goal.pan;
-        tilt_ref.data = goal.tilt;
+    control_msgs::FollowJointTrajectoryGoal joint_trajectory_goal;
+    joint_trajectory_goal.trajectory.joint_names.push_back(pan_joint_name_);
+    joint_trajectory_goal.trajectory.joint_names.push_back(tilt_joint_name_);
 
-        pan_pub_.publish(pan_ref);
-        tilt_pub_.publish(tilt_ref);
-    }
-    else
-    {
-        // populate msg
-        sensor_msgs::JointState head_ref;
-        head_ref.name.push_back("neck_pan_joint");
-        head_ref.name.push_back("neck_tilt_joint");
+    trajectory_msgs::JointTrajectoryPoint goal_point;
+    goal_point.positions.push_back(goal.pan);
+    goal_point.positions.push_back(goal.tilt);
+    goal_point.velocities.push_back(1.0);
+    goal_point.velocities.push_back(1.0);
+    joint_trajectory_goal.trajectory.points.push_back(goal_point);
 
-        head_ref.position.push_back(goal.pan);
-        head_ref.position.push_back(goal.tilt);
-        head_ref.velocity.push_back(goal.pan_vel);
-        head_ref.velocity.push_back(goal.tilt_vel);
+    control_msgs::JointTolerance tolerance_pan;
+    tolerance_pan.name = pan_joint_name_;
+    tolerance_pan.position = 10.;
+    tolerance_pan.velocity = 100.;
+    tolerance_pan.acceleration = 100.;
 
-        head_pub_.publish(head_ref);
-    }
+    control_msgs::JointTolerance tolerance_tilt;
+    tolerance_tilt.name = tilt_joint_name_;
+    tolerance_tilt.position = 10.;
+    tolerance_tilt.velocity = 100.;
+    tolerance_tilt.acceleration = 100.;
+
+    joint_trajectory_goal.goal_tolerance.push_back(tolerance_pan);
+    joint_trajectory_goal.goal_tolerance.push_back(tolerance_tilt);
+
+    joint_trajectory_ac_.sendGoal(joint_trajectory_goal);
+
+
 }
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
