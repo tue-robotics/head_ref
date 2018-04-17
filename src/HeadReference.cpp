@@ -9,7 +9,7 @@ HeadReference::HeadReference() :
     current_pan_(0),
     current_tilt_(0),
     goal_error_tolerance_(0.05),
-    joint_trajectory_ac_("body/joint_trajectory_action", true)
+    joint_trajectory_ac_("neck/joint_trajectory_action", true)
 {
     ros::NodeHandle nh("~");
     ros::NodeHandle gh;
