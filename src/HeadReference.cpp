@@ -200,6 +200,7 @@ void HeadReference::generateReferences()
     trajectory_msgs::JointTrajectoryPoint goal_point;
     goal_point.positions.push_back(goal.pan);
     goal_point.positions.push_back(goal.tilt);
+    goal_point.time_from_start = ros::Duration(0.2);
     goal_point.velocities.push_back(1.0);
     goal_point.velocities.push_back(1.0);
     joint_trajectory_goal.trajectory.points.push_back(goal_point);
