@@ -80,7 +80,7 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     }
 
     // abort goal with same priority
-    abortGoalWithSamePriority(gh.getGoal()->priority);
+    abortGoalWithSamePriority(gh);
 
     // Accept the goal
     gh.setAccepted();
@@ -94,17 +94,22 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     generateReferences();
 }
 
-void HeadReference::abortGoalWithSamePriority(unsigned int priority)
+bool HeadReference::abortGoalWithSamePriority(const HeadReferenceActionServer::GoalHandle gh)
 {
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
     for(; it != goal_handles_.end(); ++it) {
-        if (it->getGoal()->priority == priority) {
+        if (it->getGoal()->priority == gh.getGoal()->priority) {
             head_ref::HeadReferenceResult result;
             result.error = "Client with same priority registered.";
-            ROS_DEBUG_STREAM("HR: Client with same priority " << priority << " registered. Aborting old client.");
+            ROS_INFO("HR: Client with same priority %d registered. Aborting old goal %s", (int) gh.getGoal()->priority, it->getGoalID().id.c_str());
             it->setAborted(result);
             goal_handles_.erase(it);
-            return;
+            return true;
+        }
+        else
+        {
+//            ROS_INFO_STREAM("HR: Goal " << it->getGoalID().id << " with " << gh.getGoal()->priority << " has no other of same prio");
+            return false;
         }
     }
 }

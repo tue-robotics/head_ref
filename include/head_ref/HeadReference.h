@@ -36,7 +36,7 @@ class HeadReference
 
         void measurementCallBack(const sensor_msgs::JointState& msg);
 
-        void abortGoalWithSamePriority(unsigned int priority);
+        bool abortGoalWithSamePriority(const HeadReferenceActionServer::GoalHandle gh);
 
         bool targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt);
         void publishMarker(const tf::Stamped<tf::Point>& target);
