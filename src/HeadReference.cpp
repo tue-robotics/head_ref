@@ -1,6 +1,12 @@
 #include "head_ref/HeadReference.h"
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 
+/**
+ * Tell if GoalHandle a has higher properity than GolHandle b
+ * @param a GoalHandle to check against
+ * @param b GoalHandle to check against
+ * @return bool that is true when a is higher priority than b, false if a is lower or equal priority
+ */
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
 }

@@ -5,7 +5,7 @@ byte LOOKAT_AND_FREEZE = 2
 
 byte goal_type   # either LOOKAT or PAN_TILT
 
-uint8 priority 	 # [1-255] (action client calls with the same priority cancel each other)
+uint8 priority 	 # [1-255] (action client calls with the same priority cancel each other. 1 is highest prio, 255 lowest)
 
 float64 pan_vel      # pan_vel
 float64 tilt_vel     # tilt_vel 
