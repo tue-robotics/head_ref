@@ -67,7 +67,7 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
+    ROS_INFO_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority << ": " << gh.getGoalID().id);
 
     // ROBOCUP HACK
     if (gh.getGoal()->goal_type == head_ref::HeadReferenceGoal::LOOKAT_AND_FREEZE)
@@ -84,6 +84,7 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 
     // Accept the goal
     gh.setAccepted();
+    ROS_INFO("Enqueue goal %s with prio %d", gh.getGoalID().id.c_str(), gh.getGoal()->priority);
 
     // Push back goal handle
     goal_handles_.push_back(gh);
@@ -126,6 +127,7 @@ void HeadReference::checkTimeOuts()
             result.error = "TimeOut exceeded!";
             it->setAborted(result);
             it = goal_handles_.erase(it);
+            ROS_INFO_STREAM("HR: Goal "<< it->getGoalID().id << " is past timeout: aborted & erased");
         }
         else
         {
@@ -136,7 +138,7 @@ void HeadReference::checkTimeOuts()
 
 void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
+    ROS_INFO_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
 
     // Find the goalhandle in the goal_handles_ vector
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = std::find(goal_handles_.begin(), goal_handles_.end(), gh);
@@ -155,6 +157,8 @@ void HeadReference::generateReferences()
     {
         // Take the highest priority goal
         HeadReferenceActionServer::GoalHandle gh = goal_handles_.front();
+        ROS_INFO("Select goal %s with prio %d", gh.getGoalID().id.c_str(), gh.getGoal()->priority);
+
         goal = *gh.getGoal();
 
         if (goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT) {
