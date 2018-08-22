@@ -148,7 +148,7 @@ void HeadReference::generateReferences()
         HeadReferenceActionServer::GoalHandle gh = goal_handles_.front();
         goal = *gh.getGoal();
 
-        if (goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT) {
+        if (goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT || goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT_AND_FREEZE) {
             // Update pan and tilt
             tf::Stamped<tf::Point> tp;
             tf::pointStampedMsgToTF(goal.target_point,tp);
