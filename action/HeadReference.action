@@ -5,7 +5,7 @@ byte LOOKAT_AND_FREEZE = 2
 
 byte goal_type   # either LOOKAT or PAN_TILT
 
-uint8 priority 	 # [1-255] (action client calls with the same priority cancel each other)
+uint8 priority 	 # [1-255] (action client calls with the same priority cancel each other. 1 is highest prio, 255 lowest)
 
 float64 pan_vel      # pan_vel
 float64 tilt_vel     # tilt_vel 
@@ -17,7 +17,7 @@ geometry_msgs/PointStamped target_point  # use in case of LOOKAT
 float64 pan      # use in case of PAN_TILT
 float64 tilt     # use in case of PAN_TILT
 
-# timout
+# timeout
 float64 end_time  # goal cancels automatically after this time (seconds), if 0, no auto cancel
 
 ---

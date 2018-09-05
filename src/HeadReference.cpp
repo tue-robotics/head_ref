@@ -1,5 +1,12 @@
 #include "head_ref/HeadReference.h"
+#include <trajectory_msgs/JointTrajectoryPoint.h>
 
+/**
+ * Tell if GoalHandle a has higher properity than GolHandle b
+ * @param a GoalHandle to check against
+ * @param b GoalHandle to check against
+ * @return bool that is true when a is higher priority than b, false if a is lower or equal priority
+ */
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
 }
@@ -7,7 +14,8 @@ bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceAction
 HeadReference::HeadReference() :
     current_pan_(0),
     current_tilt_(0),
-    goal_error_tolerance_(0.05)
+    goal_error_tolerance_(0.05),
+    joint_trajectory_ac_("neck/joint_trajectory_action", true)
 {
     ros::NodeHandle nh("~");
     ros::NodeHandle gh;
@@ -22,24 +30,18 @@ HeadReference::HeadReference() :
     // Start action server
     as_->start();
     
-    // Get tf prefix
+    // Get parameters
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
+    n.param<std::string>("pan_joint_name", pan_joint_name_, "neck_pan_joint");
+    n.param<std::string>("tilt_joint_name", tilt_joint_name_, "neck_tilt_joint");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
     tf_prefix_ = "/" + tf_prefix_;
 
-    // ROS publishers
-    if ( float_topics_ )
-    {
-        pan_pub_ = gh.advertise<std_msgs::Float64>("pan_controller/command", 1);
-        tilt_pub_ = gh.advertise<std_msgs::Float64>("tilt_controller/command", 1);
-    }
-    else
-    {
-        head_pub_ = gh.advertise<sensor_msgs::JointState>("neck/references", 50);
-    }
+    joint_trajectory_ac_.waitForServer();
+
     marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
 
     // ROS subscribers
@@ -50,14 +52,14 @@ HeadReference::HeadReference() :
 
 HeadReference::~HeadReference()
 {
-
+    joint_trajectory_ac_.cancelAllGoals();
 }
 
 void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
     for(unsigned int i = 0; i < msg.name.size(); ++i) {
-        if (msg.name[i] == "neck_pan_joint") {
+        if (msg.name[i] == pan_joint_name_) {
             current_pan_ = msg.position[i];
-        } else if  (msg.name[i] == "neck_tilt_joint") {
+        } else if  (msg.name[i] == tilt_joint_name_) {
             current_tilt_ = msg.position[i];
         }
     }
@@ -65,7 +67,7 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
+    ROS_INFO_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority << ": " << gh.getGoalID().id);
 
     // ROBOCUP HACK
     if (gh.getGoal()->goal_type == head_ref::HeadReferenceGoal::LOOKAT_AND_FREEZE)
@@ -78,29 +80,37 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     }
 
     // abort goal with same priority
-    abortGoalWithSamePriority(gh.getGoal()->priority);
+    abortGoalWithSamePriority(gh);
 
     // Accept the goal
     gh.setAccepted();
+    ROS_INFO("Enqueue goal %s with prio %d", gh.getGoalID().id.c_str(), gh.getGoal()->priority);
 
     // Push back goal handle
     goal_handles_.push_back(gh);
 
     // Sort goal handles on priority
     std::sort(goal_handles_.begin(),goal_handles_.end(),compByPriority);
+
+    generateReferences();
 }
 
-void HeadReference::abortGoalWithSamePriority(unsigned int priority)
+bool HeadReference::abortGoalWithSamePriority(const HeadReferenceActionServer::GoalHandle gh)
 {
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
     for(; it != goal_handles_.end(); ++it) {
-        if (it->getGoal()->priority == priority) {
+        if (it->getGoal()->priority == gh.getGoal()->priority) {
             head_ref::HeadReferenceResult result;
             result.error = "Client with same priority registered.";
-            ROS_DEBUG_STREAM("HR: Client with same priority " << priority << " registered. Aborting old client.");
+            ROS_INFO("HR: Client with same priority %d registered. Aborting old goal %s", (int) gh.getGoal()->priority, it->getGoalID().id.c_str());
             it->setAborted(result);
             goal_handles_.erase(it);
-            return;
+            return true;
+        }
+        else
+        {
+//            ROS_INFO_STREAM("HR: Goal " << it->getGoalID().id << " with " << gh.getGoal()->priority << " has no other of same prio");
+            return false;
         }
     }
 }
@@ -117,6 +127,7 @@ void HeadReference::checkTimeOuts()
             result.error = "TimeOut exceeded!";
             it->setAborted(result);
             it = goal_handles_.erase(it);
+            ROS_INFO_STREAM("HR: Goal "<< it->getGoalID().id << " is past timeout: aborted & erased");
         }
         else
         {
@@ -127,7 +138,7 @@ void HeadReference::checkTimeOuts()
 
 void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
+    ROS_INFO_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
 
     // Find the goalhandle in the goal_handles_ vector
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = std::find(goal_handles_.begin(), goal_handles_.end(), gh);
@@ -146,6 +157,8 @@ void HeadReference::generateReferences()
     {
         // Take the highest priority goal
         HeadReferenceActionServer::GoalHandle gh = goal_handles_.front();
+        ROS_INFO("Select goal %s with prio %d", gh.getGoalID().id.c_str(), gh.getGoal()->priority);
+
         goal = *gh.getGoal();
 
         if (goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT || goal.goal_type == head_ref::HeadReferenceGoal::LOOKAT_AND_FREEZE) {
@@ -164,7 +177,8 @@ void HeadReference::generateReferences()
 
         // Check whether we are there
         head_ref::HeadReferenceFeedback fb;
-        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_) {
+        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_)
+        {
 
             fb.at_setpoint = true;
             gh.publishFeedback(fb);
@@ -194,31 +208,36 @@ void HeadReference::generateReferences()
         goal.pan_vel = 1.0;
     }
 
-    //publish angles over ROS
-    if ( float_topics_ )
-    {
-        // populate msgs
-        std_msgs::Float64 pan_ref, tilt_ref;
-        pan_ref.data = goal.pan;
-        tilt_ref.data = goal.tilt;
+    control_msgs::FollowJointTrajectoryGoal joint_trajectory_goal;
+    joint_trajectory_goal.trajectory.joint_names.push_back(pan_joint_name_);
+    joint_trajectory_goal.trajectory.joint_names.push_back(tilt_joint_name_);
 
-        pan_pub_.publish(pan_ref);
-        tilt_pub_.publish(tilt_ref);
-    }
-    else
-    {
-        // populate msg
-        sensor_msgs::JointState head_ref;
-        head_ref.name.push_back("neck_pan_joint");
-        head_ref.name.push_back("neck_tilt_joint");
+    trajectory_msgs::JointTrajectoryPoint goal_point;
+    goal_point.positions.push_back(goal.pan);
+    goal_point.positions.push_back(goal.tilt);
+    goal_point.time_from_start = ros::Duration(0.2);
+    goal_point.velocities.push_back(1.0);
+    goal_point.velocities.push_back(1.0);
+    joint_trajectory_goal.trajectory.points.push_back(goal_point);
 
-        head_ref.position.push_back(goal.pan);
-        head_ref.position.push_back(goal.tilt);
-        head_ref.velocity.push_back(goal.pan_vel);
-        head_ref.velocity.push_back(goal.tilt_vel);
+    control_msgs::JointTolerance tolerance_pan;
+    tolerance_pan.name = pan_joint_name_;
+    tolerance_pan.position = 10.;
+    tolerance_pan.velocity = 100.;
+    tolerance_pan.acceleration = 100.;
 
-        head_pub_.publish(head_ref);
-    }
+    control_msgs::JointTolerance tolerance_tilt;
+    tolerance_tilt.name = tilt_joint_name_;
+    tolerance_tilt.position = 10.;
+    tolerance_tilt.velocity = 100.;
+    tolerance_tilt.acceleration = 100.;
+
+    joint_trajectory_goal.goal_tolerance.push_back(tolerance_pan);
+    joint_trajectory_goal.goal_tolerance.push_back(tolerance_tilt);
+
+    joint_trajectory_ac_.sendGoal(joint_trajectory_goal);
+
+
 }
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)

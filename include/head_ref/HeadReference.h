@@ -10,10 +10,12 @@
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64.h>
 #include <visualization_msgs/Marker.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 
 // Actionlib
 #include <actionlib/server/action_server.h>
 #include <head_ref/HeadReferenceAction.h>
+#include <actionlib/client/simple_action_client.h>
 
 // tf
 #include <tf/transform_listener.h>
@@ -34,7 +36,7 @@ class HeadReference
 
         void measurementCallBack(const sensor_msgs::JointState& msg);
 
-        void abortGoalWithSamePriority(unsigned int priority);
+        bool abortGoalWithSamePriority(const HeadReferenceActionServer::GoalHandle gh);
 
         bool targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt);
         void publishMarker(const tf::Stamped<tf::Point>& target);
@@ -48,8 +50,11 @@ class HeadReference
         ros::Publisher head_pub_, pan_pub_, tilt_pub_, marker_pub_;
         ros::Subscriber measurement_sub_;
 
+        actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> joint_trajectory_ac_;
+
         tf::TransformListener* tf_listener_;
 
+        std::string pan_joint_name_, tilt_joint_name_;
         double current_pan_, current_tilt_, goal_error_tolerance_;
         
         std::string tf_prefix_;
