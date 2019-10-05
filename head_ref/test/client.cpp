@@ -1,7 +1,7 @@
 #include "head_ref/HeadReference.h"
 #include "actionlib/client/action_client.h"
 
-typedef actionlib::ActionClient<head_ref::HeadReferenceAction> HeadReferenceActionClient;
+typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
 
 int main(int argc, char** argv){
 
@@ -72,10 +72,10 @@ int main(int argc, char** argv){
 
     ros::NodeHandle n;
 
-    actionlib::ActionClient<head_ref::HeadReferenceAction> ac("HeadReference");
+    actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> ac("HeadReference");
 
     // send a goal to the action
-    head_ref::HeadReferenceGoal goal;
+    head_ref_msgs::HeadReferenceGoal goal;
     goal.target_point.header.frame_id = FRAME;
     goal.target_point.header.stamp = ros::Time::now();
     goal.target_point.point.x = X;
@@ -84,13 +84,13 @@ int main(int argc, char** argv){
     goal.pan = PAN;
     goal.tilt = TILT;
     if (TYPE) {
-        goal.goal_type = head_ref::HeadReferenceGoal::LOOKAT;
+        goal.goal_type = head_ref_msgs::HeadReferenceGoal::LOOKAT;
     } else {
-        goal.goal_type = head_ref::HeadReferenceGoal::PAN_TILT;
+        goal.goal_type = head_ref_msgs::HeadReferenceGoal::PAN_TILT;
     }
     goal.priority = PRIORITY;
 
-    head_ref::HeadReferenceActionGoal g;
+    head_ref_msgs::HeadReferenceActionGoal g;
     ros::Duration(2).sleep(); // Let the actionclient initialize
 
     HeadReferenceActionClient::GoalHandle gh = ac.sendGoal(goal);
