@@ -1,9 +1,9 @@
 #include "actionlib/client/action_client.h"
-#include "head_ref/HeadReferenceAction.h"
+#include "head_ref_msgs/HeadReferenceAction.h"
 
 #include <geometry_msgs/Twist.h>
 
-typedef actionlib::ActionClient<head_ref::HeadReferenceAction> HeadReferenceActionClient;
+typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
 
 #define PI 3.14159265
 
@@ -19,7 +19,7 @@ void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
         return;
 
     // send a goal to the action
-    head_ref::HeadReferenceGoal goal;
+    head_ref_msgs::HeadReferenceGoal goal;
     goal.target_point.header.frame_id = frame;
     goal.target_point.header.stamp = ros::Time::now();
 
@@ -45,7 +45,7 @@ void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
     goal.target_point.point.y = sin(th) * r;
     goal.target_point.point.z = 0;
 
-    goal.goal_type = head_ref::HeadReferenceGoal::LOOKAT;
+    goal.goal_type = head_ref_msgs::HeadReferenceGoal::LOOKAT;
 
     goal.priority = 5;
 

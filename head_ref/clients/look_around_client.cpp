@@ -1,8 +1,8 @@
 #include "actionlib/client/action_client.h"
-#include "head_ref/HeadReferenceAction.h"
+#include "head_ref_msgs/HeadReferenceAction.h"
 #include <geometry_msgs/Twist.h>
 
-typedef actionlib::ActionClient<head_ref::HeadReferenceAction> HeadReferenceActionClient;
+typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
 
 #define PI 3.14159265
 
@@ -32,9 +32,9 @@ void panTiltCallback(const ros::TimerEvent& e)
     }
 
     // send a goal to the action
-    head_ref::HeadReferenceGoal goal;
+    head_ref_msgs::HeadReferenceGoal goal;
 
-    goal.goal_type = head_ref::HeadReferenceGoal::PAN_TILT;
+    goal.goal_type = head_ref_msgs::HeadReferenceGoal::PAN_TILT;
     goal.priority = priority;
     goal.pan_vel = pan_vel;
     goal.tilt_vel = tilt_vel;
@@ -58,7 +58,7 @@ void lookAtCallback(const ros::TimerEvent& e)
     }
     
     // send a goal to the action
-    head_ref::HeadReferenceGoal goal;
+    head_ref_msgs::HeadReferenceGoal goal;
     geometry_msgs::PointStamped goal_pt;
 
     goal_pt.point.x = xs[state];
@@ -66,7 +66,7 @@ void lookAtCallback(const ros::TimerEvent& e)
     goal_pt.point.z = zs[state];
     goal_pt.header.frame_id = frame_id;
 
-    goal.goal_type = head_ref::HeadReferenceGoal::LOOKAT;
+    goal.goal_type = head_ref_msgs::HeadReferenceGoal::LOOKAT;
     goal.priority = priority;
     goal.pan_vel = pan_vel;
     goal.tilt_vel = tilt_vel;

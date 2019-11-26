@@ -13,12 +13,12 @@
 
 // Actionlib
 #include <actionlib/server/action_server.h>
-#include <head_ref/HeadReferenceAction.h>
+#include <head_ref_msgs/HeadReferenceAction.h>
 
 // tf
 #include <tf/transform_listener.h>
 
-typedef actionlib::ActionServer<head_ref::HeadReferenceAction> HeadReferenceActionServer;
+typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenceActionServer;
 
 class HeadReference
 {
@@ -55,7 +55,7 @@ class HeadReference
         std::string tf_prefix_;
         double default_pan_, default_tilt_;
 
-        head_ref::HeadReferenceGoal lookat_and_freeze_goal_;
+        head_ref_msgs::HeadReferenceGoal lookat_and_freeze_goal_;
 };
 
 #endif /* HEAD_REF_HEAD_REFERENCES_H_ */
