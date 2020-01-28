@@ -30,6 +30,7 @@ HeadReference::HeadReference() :
     n.param<std::string>("tf_prefix", tf_prefix_, "");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
+    n.param<double>("delay", at_setpoint_delay_, 0.0);
     n.param<bool>("float_topics", float_topics_, false);
     tf_prefix_ = "/" + tf_prefix_;
 
@@ -51,10 +52,12 @@ HeadReference::HeadReference() :
 
 }
 
+
 HeadReference::~HeadReference()
 {
 
 }
+
 
 void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
     for(unsigned int i = 0; i < msg.name.size(); ++i) {
@@ -65,6 +68,7 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
         }
     }
 }
+
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
@@ -87,12 +91,13 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     gh.setAccepted();
 
     // Push back goal handle
-    GoalInfo goal_info{gh};
+    GoalInfo goal_info{gh, ros::Time(0)};
     goal_info_.push_back(goal_info);
 
     // Sort goal handles on priority
     std::sort(goal_info_.begin(), goal_info_.end(), compByPriority);
 }
+
 
 void HeadReference::abortGoalWithSamePriority(unsigned int priority)
 {
@@ -109,6 +114,7 @@ void HeadReference::abortGoalWithSamePriority(unsigned int priority)
         }
     }
 }
+
 
 void HeadReference::checkTimeOuts()
 {
@@ -131,6 +137,7 @@ void HeadReference::checkTimeOuts()
     }
 }
 
+
 void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
     ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
@@ -147,6 +154,7 @@ void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
     ROS_WARN_STREAM("Goal with ID " << gh.getGoalID() << " was not in the list, could not cancel");
 }
 
+
 void HeadReference::generateReferences()
 {
     checkTimeOuts();
@@ -156,7 +164,8 @@ void HeadReference::generateReferences()
     if (goal_info_.size() > 0)
     {
         // Take the highest priority goal
-        HeadReferenceActionServer::GoalHandle gh = goal_info_.front().goal_handle;
+        GoalInfo goal_info = goal_info_.front();  // This returns a *reference* to a goal info struct
+        HeadReferenceActionServer::GoalHandle gh = goal_info.goal_handle;
         goal = *gh.getGoal();
 
         if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT || goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE) {
@@ -175,15 +184,16 @@ void HeadReference::generateReferences()
 
         // Check whether we are there
         head_ref_msgs::HeadReferenceFeedback fb;
-        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_) {
+        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_)
+        {
 
-            fb.at_setpoint = true;
+            fb.at_setpoint = atSetpoint(goal_info, true);
             gh.publishFeedback(fb);
             return;
         }
         else
         {
-            fb.at_setpoint = false;
+            fb.at_setpoint = atSetpoint(goal_info, false);
             gh.publishFeedback(fb);
         }
     }
@@ -231,6 +241,7 @@ void HeadReference::generateReferences()
         head_pub_.publish(head_ref);
     }
 }
+
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
 {
@@ -285,6 +296,35 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
 
     return true;
 }
+
+
+bool HeadReference::atSetpoint(GoalInfo &goal_info, bool currently_at_setpoint)
+{
+  // If currently not at the setpoint, reset the stamp and return false
+  if (!currently_at_setpoint)
+  {
+    goal_info.at_setpoint_stamp = ros::Time(0);
+    return false;
+  }
+
+  // If at setpoint, check if it is already set
+  ros::Time current_stamp = ros::Time::now();
+  if (goal_info.at_setpoint_stamp == ros::Time(0))
+  {
+    goal_info.at_setpoint_stamp = current_stamp;
+    return false;
+  }
+
+  // If it was already set, check if this was long enough
+  // ToDo: does this result in jittery behavior?
+  if ((current_stamp - goal_info.at_setpoint_stamp).toSec() > at_setpoint_delay_)
+  {
+    return true;
+  }
+  return false;
+
+}
+
 
 void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
 

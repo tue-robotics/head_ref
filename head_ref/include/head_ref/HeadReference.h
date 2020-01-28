@@ -26,7 +26,7 @@ typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenc
 struct GoalInfo
 {
   HeadReferenceActionServer::GoalHandle goal_handle;
-//  ros::Time::stamp at_setpoint_stamp;
+  ros::Time at_setpoint_stamp;
 };
 
 
@@ -51,6 +51,14 @@ class HeadReference
 
         void checkTimeOuts();
 
+        /**
+         * @brief atSetpoint Checks if this goal has been at its setpoint sufficiently long
+         * @param goal_info contains goal handle and stamp at which the goal was last at its setpoint
+         * @param currently_at_setpoint whether it currently is at setpoint
+         * @return at setpoing long enough
+         */
+        bool atSetpoint(GoalInfo &goal_info, bool currently_at_setpoint);
+
         HeadReferenceActionServer* as_;
         std::vector<GoalInfo> goal_info_;
 
@@ -64,6 +72,16 @@ class HeadReference
         
         std::string tf_prefix_;
         double default_pan_, default_tilt_;
+
+        /**
+         * @brief at_setpoint_delay_ The neck should be at least this amount of seconds at setpoint before
+         * the 'at_setpoint' field of the feedback message is set to True.
+         *
+         * This is useful, e.g., if there are vibrations between the actuator and the head: this might
+         * cause the actuators to report that they're at setpoint while the head (=what matters) is still
+         * shaking, indirectly resulting in blurry camera images.
+         */
+        double at_setpoint_delay_;
 
         head_ref_msgs::HeadReferenceGoal lookat_and_freeze_goal_;
 };
