@@ -1,8 +1,11 @@
 #include "head_ref/HeadReference.h"
 
-bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
-    return a.getGoal()->priority < b.getGoal()->priority;
+
+bool compByPriority(GoalInfo a, GoalInfo b)
+{
+  return a.goal_handle.getGoal()->priority < b.goal_handle.getGoal()->priority;
 }
+
 
 HeadReference::HeadReference() :
     current_pan_(0),
@@ -84,22 +87,24 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     gh.setAccepted();
 
     // Push back goal handle
-    goal_handles_.push_back(gh);
+    GoalInfo goal_info{gh};
+    goal_info_.push_back(goal_info);
 
     // Sort goal handles on priority
-    std::sort(goal_handles_.begin(),goal_handles_.end(),compByPriority);
+    std::sort(goal_info_.begin(), goal_info_.end(), compByPriority);
 }
 
 void HeadReference::abortGoalWithSamePriority(unsigned int priority)
 {
-    std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
-    for(; it != goal_handles_.end(); ++it) {
-        if (it->getGoal()->priority == priority) {
+    auto it = goal_info_.begin();
+    for(; it != goal_info_.end(); ++it) {
+      HeadReferenceActionServer::GoalHandle gh = it->goal_handle;
+      if (gh.getGoal()->priority == priority) {
             head_ref_msgs::HeadReferenceResult result;
             result.error = "Client with same priority registered.";
             ROS_DEBUG_STREAM("HR: Client with same priority " << priority << " registered. Aborting old client.");
-            it->setAborted(result);
-            goal_handles_.erase(it);
+            gh.setAborted(result);
+            goal_info_.erase(it);
             return;
         }
     }
@@ -107,16 +112,17 @@ void HeadReference::abortGoalWithSamePriority(unsigned int priority)
 
 void HeadReference::checkTimeOuts()
 {
-    for(std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin(); it != goal_handles_.end();)
+    for(auto it = goal_info_.begin(); it != goal_info_.end();)
     {
-        double end_time = it->getGoal()->end_time;
+        HeadReferenceActionServer::GoalHandle gh = it->goal_handle;
+        double end_time = gh.getGoal()->end_time;
 
         if (end_time > 0 && ros::Time::now().toSec() > end_time)
         {
             head_ref_msgs::HeadReferenceResult result;
             result.error = "TimeOut exceeded!";
-            it->setAborted(result);
-            it = goal_handles_.erase(it);
+            gh.setAborted(result);
+            it = goal_info_.erase(it);
         }
         else
         {
@@ -129,11 +135,16 @@ void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
     ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
 
-    // Find the goalhandle in the goal_handles_ vector
-    std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = std::find(goal_handles_.begin(), goal_handles_.end(), gh);
-
-    // Check if element exist (just for safety) and erase the element
-    if (it != goal_handles_.end()) { goal_handles_.erase(it); }
+    for (auto it = goal_info_.begin(); it != goal_info_.end(); ++it)
+    {
+      if (it->goal_handle == gh)
+      {
+        goal_info_.erase(it);
+        return;
+      }
+    }
+    // If we end up here, something was wrong
+    ROS_WARN_STREAM("Goal with ID " << gh.getGoalID() << " was not in the list, could not cancel");
 }
 
 void HeadReference::generateReferences()
@@ -142,10 +153,10 @@ void HeadReference::generateReferences()
 
     head_ref_msgs::HeadReferenceGoal goal;
 
-    if (goal_handles_.size() > 0)
+    if (goal_info_.size() > 0)
     {
         // Take the highest priority goal
-        HeadReferenceActionServer::GoalHandle gh = goal_handles_.front();
+        HeadReferenceActionServer::GoalHandle gh = goal_info_.front().goal_handle;
         goal = *gh.getGoal();
 
         if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT || goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE) {
@@ -156,7 +167,7 @@ void HeadReference::generateReferences()
             if (!targetToPanTilt(tp, goal.pan, goal.tilt))
             {
               gh.setAborted();
-              goal_handles_.erase (goal_handles_.begin(), goal_handles_.begin()+1);
+              goal_info_.erase (goal_info_.begin(), goal_info_.begin()+1);
               return;
             }
             publishMarker(tp);
@@ -319,8 +330,3 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
     marker_pub_.publish(marker);
 
 }
-
-
-
-
-

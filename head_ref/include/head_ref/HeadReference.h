@@ -20,6 +20,16 @@
 
 typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenceActionServer;
 
+/**
+ * @brief The GoalInfo struct contains all info concerning a specific goal
+ */
+struct GoalInfo
+{
+  HeadReferenceActionServer::GoalHandle goal_handle;
+//  ros::Time::stamp at_setpoint_stamp;
+};
+
+
 class HeadReference
 {
 
@@ -42,7 +52,7 @@ class HeadReference
         void checkTimeOuts();
 
         HeadReferenceActionServer* as_;
-        std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
+        std::vector<GoalInfo> goal_info_;
 
         bool float_topics_;
         ros::Publisher head_pub_, pan_pub_, tilt_pub_, marker_pub_;
