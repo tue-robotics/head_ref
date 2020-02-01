@@ -69,6 +69,20 @@ class HeadReference
          */
         bool getJointInfo(const urdf::Model& model, JointProps& props);
 
+        /**
+         * @brief limitReferences Saturates a reference value
+         * @param props joint properties of the relevant joint
+         * @param reference value to be limited
+         * @return limited value
+         */
+        double limitReferences(const JointProps &props, double reference);
+
+        /**
+         * @brief publishReferences saturates the references values (if applicable) and publishes these
+         * @param goal goal to publish
+         */
+        void publishReferences(head_ref_msgs::HeadReferenceGoal& goal);
+
         HeadReferenceActionServer* as_;
         std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
 

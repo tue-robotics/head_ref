@@ -182,10 +182,15 @@ void HeadReference::generateReferences()
             }
             else
             {
-              goal.pan = pan_goal * pan_joint_props_.direction;
-              goal.tilt = tilt_goal * tilt_joint_props_.direction;
+              goal.pan = limitReferences(pan_joint_props_, pan_goal * pan_joint_props_.direction);
+              goal.tilt = limitReferences(tilt_joint_props_, tilt_goal * tilt_joint_props_.direction);
             }
             publishMarker(tp);
+        }
+        else if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::PAN_TILT)
+        {
+          goal.pan = limitReferences(pan_joint_props_, goal.pan);
+          goal.tilt = limitReferences(tilt_joint_props_, goal.tilt);
         }
 
         // Check whether we are there
@@ -223,32 +228,53 @@ void HeadReference::generateReferences()
         goal.pan_vel = 1.0;
     }
 
-    //publish angles over ROS
-    if ( float_topics_ )
-    {
-        // populate msgs
-        std_msgs::Float64 pan_ref, tilt_ref;
-        pan_ref.data = goal.pan;
-        tilt_ref.data = goal.tilt;
-
-        pan_pub_.publish(pan_ref);
-        tilt_pub_.publish(tilt_ref);
-    }
-    else
-    {
-        // populate msg
-        sensor_msgs::JointState head_ref;
-        head_ref.name.push_back(pan_joint_props_.name);
-        head_ref.name.push_back(tilt_joint_props_.name);
-
-        head_ref.position.push_back(goal.pan);
-        head_ref.position.push_back(goal.tilt);
-        head_ref.velocity.push_back(goal.pan_vel);
-        head_ref.velocity.push_back(goal.tilt_vel);
-
-        head_pub_.publish(head_ref);
-    }
+    publishReferences(goal);
 }
+
+
+double HeadReference::limitReferences(const JointProps& props, double reference)
+{
+  if (reference < props.lower || reference > props.upper)
+  {
+    ROS_WARN_STREAM_THROTTLE(1.0, "Reference for joint " << props.name << " (" << reference << ") exceeds limits ("
+                    << props.lower << ", " << props.upper << "), overwriting");
+    return std::max(props.lower, std::min(props.upper, reference));
+  }
+  return reference;
+
+}
+
+
+void HeadReference::publishReferences(head_ref_msgs::HeadReferenceGoal &goal)
+{
+  // Publish angles over ROS
+  if ( float_topics_ )
+  {
+      // Populate msgs
+      std_msgs::Float64 pan_ref, tilt_ref;
+      pan_ref.data = goal.pan;
+      tilt_ref.data = goal.tilt;
+
+      pan_pub_.publish(pan_ref);
+      tilt_pub_.publish(tilt_ref);
+  }
+  else
+  {
+      // Populate msg
+      sensor_msgs::JointState head_ref;
+      head_ref.name.push_back(pan_joint_props_.name);
+      head_ref.name.push_back(tilt_joint_props_.name);
+
+      head_ref.position.push_back(goal.pan);
+      head_ref.position.push_back(goal.tilt);
+      head_ref.velocity.push_back(goal.pan_vel);
+      head_ref.velocity.push_back(goal.tilt_vel);
+
+      head_pub_.publish(head_ref);
+  }
+
+}
+
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
 {
