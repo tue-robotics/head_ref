@@ -20,6 +20,22 @@
 
 typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenceActionServer;
 
+
+namespace urdf
+{
+  class Model;  // Forward declare urdf model class
+}
+
+
+struct JointProps
+{
+  std::string name;
+  double lower;
+  double upper;
+  double direction = 1.0;
+};
+
+
 class HeadReference
 {
 
@@ -41,6 +57,20 @@ class HeadReference
 
         void checkTimeOuts();
 
+        /**
+         * @brief getJointsInfo gets joint limits etc. using the urdf model on the param server for all joints
+         * @return success or failure
+         */
+        bool getJointsInfo();
+
+        /**
+         * @brief getJointInfo updates the props of the joint
+         * @param model urdf model to get the data from
+         * @param props Joint info to be updated
+         * @return success or failure
+         */
+        bool getJointInfo(const urdf::Model& model, JointProps& props);
+
         HeadReferenceActionServer* as_;
         std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
 
@@ -54,8 +84,8 @@ class HeadReference
         
         std::string tf_prefix_;
 
-        /// Joint names of the neck join
-        std::string pan_joint_name_, tilt_joint_name_;
+        /// Joint properties
+        JointProps pan_joint_props_, tilt_joint_props_;
 
         double default_pan_, default_tilt_;
 

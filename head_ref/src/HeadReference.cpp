@@ -1,4 +1,5 @@
 #include "head_ref/HeadReference.h"
+#include <urdf/model.h>
 
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
@@ -25,12 +26,17 @@ HeadReference::HeadReference() :
     // Get tf prefix
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
-    n.param<std::string>("pan_joint_name", pan_joint_name_, "neck_pan_joint");
-    n.param<std::string>("tilt_joint_name", tilt_joint_name_, "neck_tilt_joint");
+    n.param<std::string>("pan_joint_name", pan_joint_props_.name, "neck_pan_joint");
+    n.param<std::string>("tilt_joint_name", tilt_joint_props_.name, "neck_tilt_joint");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
     tf_prefix_ = "/" + tf_prefix_;
+
+    if (!getJointsInfo())
+    {
+      throw;
+    }
 
     // ROS publishers
     if ( float_topics_ )
@@ -60,12 +66,12 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
     ROS_DEBUG_STREAM_THROTTLE(1.0, "Received joint measurement");
     for(unsigned int i = 0; i < msg.name.size(); ++i)
     {
-        if (msg.name[i] == pan_joint_name_)
+        if (msg.name[i] == pan_joint_props_.name)
         {
             ROS_DEBUG_STREAM_THROTTLE(1.0, "Updating neck pan joint to " << msg.position[i]);
             current_pan_ = msg.position[i];
         }
-        else if (msg.name[i] == tilt_joint_name_)
+        else if (msg.name[i] == tilt_joint_props_.name)
         {
             ROS_DEBUG_STREAM_THROTTLE(1.0, "Updating neck tilt joint to " << msg.position[i]);
             current_tilt_ = msg.position[i];
@@ -163,11 +169,17 @@ void HeadReference::generateReferences()
             tf::Stamped<tf::Point> tp;
             tf::pointStampedMsgToTF(goal.target_point,tp);
             tp.stamp_ = ros::Time();
-            if (!targetToPanTilt(tp, goal.pan, goal.tilt))
+            double pan_goal, tilt_goal;
+            if (!targetToPanTilt(tp, pan_goal, tilt_goal))
             {
               gh.setAborted();
               goal_handles_.erase (goal_handles_.begin(), goal_handles_.begin()+1);
               return;
+            }
+            else
+            {
+              goal.pan = pan_goal * pan_joint_props_.direction;
+              goal.tilt = tilt_goal * tilt_joint_props_.direction;
             }
             publishMarker(tp);
         }
@@ -196,7 +208,7 @@ void HeadReference::generateReferences()
         goal.tilt = default_tilt_;
     }
 
-    ROS_DEBUG("Current head goal (pan/tilt): %.3f,%.3f",goal.pan,goal.tilt);
+    ROS_DEBUG_THROTTLE(1.0, "Current head goal (pan/tilt): %.3f,%.3f",goal.pan,goal.tilt);
 
     // ROBOCUP HACK
     if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE)
@@ -222,8 +234,8 @@ void HeadReference::generateReferences()
     {
         // populate msg
         sensor_msgs::JointState head_ref;
-        head_ref.name.push_back(pan_joint_name_);
-        head_ref.name.push_back(tilt_joint_name_);
+        head_ref.name.push_back(pan_joint_props_.name);
+        head_ref.name.push_back(tilt_joint_props_.name);
 
         head_ref.position.push_back(goal.pan);
         head_ref.position.push_back(goal.tilt);
@@ -287,6 +299,59 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
 
     return true;
 }
+
+
+bool HeadReference::getJointsInfo()
+{
+  urdf::Model model;
+  if (!model.initParam(tf_prefix_ + "/robot_description"))
+  {
+    ROS_ERROR("Cannot get URDF model from the parameter server");
+    return false;
+  }
+
+  if (!getJointInfo(model, pan_joint_props_))
+    return false;
+
+  if (!getJointInfo(model, tilt_joint_props_))
+    return false;
+
+}
+
+
+bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
+{
+  // Get joint info from urdf model
+  urdf::JointConstSharedPtr joint_ptr = model.getJoint(props.name);
+  if (joint_ptr == NULL)
+  {
+    ROS_ERROR_STREAM("Could not get joint '" << props.name << "' from the urdf model");
+    return false;
+  }
+
+  // Get joint limits from joint info
+  props.lower = joint_ptr->limits->lower;
+  props.upper = joint_ptr->limits->upper;
+
+  // Get direction from joint info
+  if (joint_ptr->axis.x > 0.99 || joint_ptr->axis.y > 0.99 || joint_ptr->axis.z > 0.99)
+    props.direction = 1.0;
+  else if (joint_ptr->axis.x < -0.99 || joint_ptr->axis.y < -0.99 || joint_ptr->axis.z < -0.99)
+    props.direction = -1.0;
+  else
+  {
+    ROS_ERROR_STREAM("Don't know ho to define the direction of joint " << props.name);
+    return false;
+  }
+
+  ROS_INFO_STREAM("Limits for " << props.name << ": "
+                  << props.lower << ", " << props.upper
+                  << ", direction: " << props.direction);
+
+  // All is well
+  return true;
+}
+
 
 void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
 
