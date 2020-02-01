@@ -23,9 +23,6 @@ HeadReference::HeadReference() :
     as_ = new HeadReferenceActionServer(nh,"action_server",false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
-
-    // Start action server
-    as_->start();
     
     // Get tf prefix
     ros::NodeHandle n("~");
@@ -57,6 +54,9 @@ HeadReference::HeadReference() :
     // ROS subscribers
     measurement_sub_ = gh.subscribe("neck/measurements", 5, &HeadReference::measurementCallBack, this);
     // measurements @ 100 Hz will need a queue of 100/25=4
+
+    // Start action server
+    as_->start();
 
 }
 
