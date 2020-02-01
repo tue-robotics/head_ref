@@ -25,6 +25,8 @@ HeadReference::HeadReference() :
     // Get tf prefix
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
+    n.param<std::string>("pan_joint_name", pan_joint_name_, "neck_pan_joint");
+    n.param<std::string>("tilt_joint_name", tilt_joint_name_, "neck_tilt_joint");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
@@ -53,11 +55,19 @@ HeadReference::~HeadReference()
 
 }
 
-void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg) {
-    for(unsigned int i = 0; i < msg.name.size(); ++i) {
-        if (msg.name[i] == "neck_pan_joint") {
+void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
+{
+    ROS_DEBUG_STREAM_THROTTLE(1.0, "Received joint measurement");
+    for(unsigned int i = 0; i < msg.name.size(); ++i)
+    {
+        if (msg.name[i] == pan_joint_name_)
+        {
+            ROS_DEBUG_STREAM_THROTTLE(1.0, "Updating neck pan joint to " << msg.position[i]);
             current_pan_ = msg.position[i];
-        } else if  (msg.name[i] == "neck_tilt_joint") {
+        }
+        else if (msg.name[i] == tilt_joint_name_)
+        {
+            ROS_DEBUG_STREAM_THROTTLE(1.0, "Updating neck tilt joint to " << msg.position[i]);
             current_tilt_ = msg.position[i];
         }
     }
@@ -209,8 +219,8 @@ void HeadReference::generateReferences()
     {
         // populate msg
         sensor_msgs::JointState head_ref;
-        head_ref.name.push_back("neck_pan_joint");
-        head_ref.name.push_back("neck_tilt_joint");
+        head_ref.name.push_back(pan_joint_name_);
+        head_ref.name.push_back(tilt_joint_name_);
 
         head_ref.position.push_back(goal.pan);
         head_ref.position.push_back(goal.tilt);

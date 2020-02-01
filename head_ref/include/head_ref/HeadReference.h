@@ -53,6 +53,10 @@ class HeadReference
         double current_pan_, current_tilt_, goal_error_tolerance_;
         
         std::string tf_prefix_;
+
+        /// Joint names of the neck join
+        std::string pan_joint_name_, tilt_joint_name_;
+
         double default_pan_, default_tilt_;
 
         head_ref_msgs::HeadReferenceGoal lookat_and_freeze_goal_;
