@@ -174,7 +174,9 @@ void HeadReference::generateReferences()
 
         // Check whether we are there
         head_ref_msgs::HeadReferenceFeedback fb;
-        if (fabs(goal.pan - current_pan_) < goal_error_tolerance_ && fabs(goal.tilt - current_tilt_) < goal_error_tolerance_) {
+        double pan_error = goal.pan - current_pan_;
+        double tilt_error = goal.tilt - current_tilt_;
+        if (fabs(pan_error) < goal_error_tolerance_ && fabs(tilt_error) < goal_error_tolerance_) {
 
             fb.at_setpoint = true;
             gh.publishFeedback(fb);
@@ -182,6 +184,7 @@ void HeadReference::generateReferences()
         }
         else
         {
+            ROS_DEBUG_STREAM_THROTTLE(1.0, "Pan error: " << pan_error << ", tilt error: " << tilt_error);
             fb.at_setpoint = false;
             gh.publishFeedback(fb);
         }
