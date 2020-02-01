@@ -8,8 +8,6 @@
 
 // Messages
 #include <sensor_msgs/JointState.h>
-#include <std_msgs/Float64.h>
-#include <visualization_msgs/Marker.h>
 
 // Actionlib
 #include <actionlib/server/action_server.h>

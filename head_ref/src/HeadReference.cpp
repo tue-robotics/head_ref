@@ -1,9 +1,13 @@
 #include "head_ref/HeadReference.h"
+#include <std_msgs/Float64.h>
 #include <urdf/model.h>
+#include <visualization_msgs/Marker.h>
+
 
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
 }
+
 
 HeadReference::HeadReference() :
     current_pan_(0),
