@@ -346,6 +346,8 @@ bool HeadReference::getJointsInfo()
   if (!getJointInfo(model, tilt_joint_props_))
     return false;
 
+  return true;
+
 }
 
 
