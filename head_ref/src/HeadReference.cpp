@@ -14,17 +14,21 @@ HeadReference::HeadReference() :
     current_tilt_(0),
     goal_error_tolerance_(0.05)
 {
+    ROS_DEBUG("Init node");
     ros::NodeHandle nh("~");
     ros::NodeHandle gh;
 
+    ROS_DEBUG("Constructing listener");
     tf_listener_ = new tf::TransformListener(ros::Duration(10.0));
 
     // Setup action server
+    ROS_DEBUG("Constructing action server");
     as_ = new HeadReferenceActionServer(nh,"action_server",false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
     
     // Get tf prefix
+    ROS_DEBUG("Getting parameters");
     ros::NodeHandle n("~");
     n.param<std::string>("tf_prefix", tf_prefix_, "");
     n.param<std::string>("pan_joint_name", pan_joint_props_.name, "neck_pan_joint");
@@ -34,12 +38,14 @@ HeadReference::HeadReference() :
     n.param<bool>("float_topics", float_topics_, false);
     tf_prefix_ = "/" + tf_prefix_;
 
+    ROS_DEBUG("Getting joints info");
     if (!getJointsInfo())
     {
       throw;
     }
 
     // ROS publishers
+    ROS_DEBUG("Creating reference publisher");
     if ( float_topics_ )
     {
         pan_pub_ = gh.advertise<std_msgs::Float64>("pan_controller/command", 1);
@@ -52,10 +58,12 @@ HeadReference::HeadReference() :
     marker_pub_ = nh.advertise<visualization_msgs::Marker>("head_target_marker", 1);
 
     // ROS subscribers
+    ROS_DEBUG("Creating subscriber");
     measurement_sub_ = gh.subscribe("neck/measurements", 5, &HeadReference::measurementCallBack, this);
     // measurements @ 100 Hz will need a queue of 100/25=4
 
     // Start action server
+    ROS_DEBUG("Starting action server");
     as_->start();
 
 }
