@@ -8,8 +8,6 @@
 
 // Messages
 #include <sensor_msgs/JointState.h>
-#include <std_msgs/Float64.h>
-#include <visualization_msgs/Marker.h>
 
 // Actionlib
 #include <actionlib/server/action_server.h>
@@ -19,6 +17,22 @@
 #include <tf/transform_listener.h>
 
 typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenceActionServer;
+
+
+namespace urdf
+{
+  class Model;  // Forward declare urdf model class
+}
+
+
+struct JointProps
+{
+  std::string name;
+  double lower;
+  double upper;
+  double direction = 1.0;
+};
+
 
 class HeadReference
 {
@@ -41,6 +55,34 @@ class HeadReference
 
         void checkTimeOuts();
 
+        /**
+         * @brief getJointsInfo gets joint limits etc. using the urdf model on the param server for all joints
+         * @return success or failure
+         */
+        bool getJointsInfo();
+
+        /**
+         * @brief getJointInfo updates the props of the joint
+         * @param model urdf model to get the data from
+         * @param props Joint info to be updated
+         * @return success or failure
+         */
+        bool getJointInfo(const urdf::Model& model, JointProps& props);
+
+        /**
+         * @brief limitReferences Saturates a reference value
+         * @param props joint properties of the relevant joint
+         * @param reference value to be limited
+         * @return limited value
+         */
+        double limitReferences(const JointProps &props, double reference);
+
+        /**
+         * @brief publishReferences saturates the references values (if applicable) and publishes these
+         * @param goal goal to publish
+         */
+        void publishReferences(head_ref_msgs::HeadReferenceGoal& goal);
+
         HeadReferenceActionServer* as_;
         std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
 
@@ -53,6 +95,10 @@ class HeadReference
         double current_pan_, current_tilt_, goal_error_tolerance_;
         
         std::string tf_prefix_;
+
+        /// Joint properties
+        JointProps pan_joint_props_, tilt_joint_props_;
+
         double default_pan_, default_tilt_;
 
         head_ref_msgs::HeadReferenceGoal lookat_and_freeze_goal_;
