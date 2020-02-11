@@ -380,7 +380,9 @@ bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
     props.direction = -1.0;
   else
   {
-    ROS_ERROR_STREAM("Don't know ho to define the direction of joint " << props.name);
+    ROS_ERROR_STREAM("Don't know how to define the direction of joint " << props.name 
+                     << " (this is not supported), " 
+                     << "axis of rotation should coincide with one of the principle axes (x, y, z, -x, -y, -z) of the joint");
     return false;
   }
 
