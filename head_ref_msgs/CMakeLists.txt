@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(head_ref_msgs)
 
 ## Find catkin macros and libraries
@@ -7,7 +7,6 @@ project(head_ref_msgs)
 find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   geometry_msgs
-  std_msgs
   message_generation
 )
 
@@ -20,7 +19,6 @@ add_action_files(
 generate_messages(
     DEPENDENCIES
     actionlib_msgs
-    std_msgs
     geometry_msgs
 )
 
@@ -28,5 +26,5 @@ generate_messages(
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-    CATKIN_DEPENDS actionlib_msgs geometry_msgs message_runtime std_msgs
+    CATKIN_DEPENDS actionlib_msgs geometry_msgs message_runtime
 )
