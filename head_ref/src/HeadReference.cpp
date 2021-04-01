@@ -35,9 +35,19 @@ HeadReference::HeadReference() :
     n.param<std::string>("tf_prefix", tf_prefix_, "");
     n.param<std::string>("pan_joint_name", pan_joint_props_.name, "neck_pan_joint");
     n.param<std::string>("tilt_joint_name", tilt_joint_props_.name, "neck_tilt_joint");
+    n.param<std::string>("frame_mount", frame_mount_, "head_mount");
+    n.param<std::string>("frame_neck", frame_neck_, "neck_tilt");
+    n.param<std::string>("frame_head", frame_head_, "top_kinect/openni_camera");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
+
+    if (!tf_prefix_.empty())
+    {
+        frame_mount_ = tf_prefix_ + "/" + frame_mount_;
+        frame_neck_ = tf_prefix_ + "/" + frame_neck_;
+        frame_head_ = tf_prefix_ + "/" + frame_head_;
+    }
 
     ROS_DEBUG("Getting joints info");
     if (!getJointsInfo())
@@ -293,10 +303,10 @@ void HeadReference::publishReferences(head_ref_msgs::HeadReferenceGoal &goal)
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
 {
-    tf::Stamped<tf::Point> target_HEAD_MOUNT;
+    tf::Stamped<tf::Point> target_MOUNT;
     try
     {
-        tf_listener_->transformPoint(tf_prefix_+"/head_mount", target, target_HEAD_MOUNT);
+        tf_listener_->transformPoint(frame_mount_, target, target_MOUNT);
     }
     catch(tf::TransformException& ex)
     {
@@ -304,10 +314,10 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
         return false;
     }
 
-    tf::Stamped<tf::Point> target_NECK_TILT;
+    tf::Stamped<tf::Point> target_NECK;
     try
     {
-        tf_listener_->transformPoint(tf_prefix_+"/neck_tilt", target, target_NECK_TILT);
+        tf_listener_->transformPoint(frame_neck_, target, target_NECK);
     }
     catch(tf::TransformException& ex)
     {
@@ -315,25 +325,12 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
         return false;
     }
 
-    double head_mount_to_neck;
-    try
-    {
-        tf::StampedTransform transform;
-        tf_listener_->lookupTransform(tf_prefix_+"/head_mount", tf_prefix_+"/neck_tilt", ros::Time(), transform);
-        head_mount_to_neck = transform.getOrigin().getX();
-    }
-    catch(tf::TransformException& ex)
-    {
-        ROS_ERROR("%s", ex.what());
-        return false;
-    }
-
-    double neck_to_cam_vert;
+    double mount_to_neck;
     try
     {
         tf::StampedTransform transform;
-        tf_listener_->lookupTransform(tf_prefix_+"/neck_tilt", tf_prefix_+"/top_kinect/openni_camera", ros::Time(), transform);
-        neck_to_cam_vert = transform.getOrigin().getZ();
+        tf_listener_->lookupTransform(frame_mount_, frame_neck_, ros::Time(), transform);
+        mount_to_neck = transform.getOrigin().getX();
     }
     catch(tf::TransformException& ex)
     {
@@ -341,16 +338,29 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
         return false;
     }
 
-    pan = -atan2(target_HEAD_MOUNT.getY(), target_HEAD_MOUNT.getZ());
+    double neck_to_head_vert;
+    try
+    {
+        tf::StampedTransform transform;
+        tf_listener_->lookupTransform(frame_neck_, frame_head_, ros::Time(), transform);
+        neck_to_head_vert = transform.getOrigin().getZ();
+    }
+    catch(tf::TransformException& ex)
+    {
+        ROS_ERROR("%s", ex.what());
+        return false;
+    }
 
-    double neck_to_target = target_NECK_TILT.length();
+    pan = -atan2(target_MOUNT.getY(), target_MOUNT.getZ());
 
-    double target_to_neck_vert = target_HEAD_MOUNT.getX() - head_mount_to_neck;
+    double neck_to_target = target_NECK.length();
 
-    double head_mount_to_target_flat = sqrt(target_HEAD_MOUNT.getY() * target_HEAD_MOUNT.getY() + target_HEAD_MOUNT.getZ() * target_HEAD_MOUNT.getZ());
+    double target_to_neck_vert = target_MOUNT.getX() - mount_to_neck;
+
+    double head_mount_to_target_flat = sqrt(target_MOUNT.getY() * target_MOUNT.getY() + target_MOUNT.getZ() * target_MOUNT.getZ());
 
     double tilt_basic = -atan(target_to_neck_vert / head_mount_to_target_flat);
-    double tilt_camera_offset_correction = asin(neck_to_cam_vert / neck_to_target);
+    double tilt_camera_offset_correction = asin(neck_to_head_vert / neck_to_target);
 
     tilt = tilt_basic + tilt_camera_offset_correction;
 
