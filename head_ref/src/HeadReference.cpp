@@ -38,7 +38,6 @@ HeadReference::HeadReference() :
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
-    tf_prefix_ = "/" + tf_prefix_;
 
     ROS_DEBUG("Getting joints info");
     if (!getJointsInfo())
