@@ -20,7 +20,7 @@ int main(int argc, char** argv){
         NAME = argv[2];
     }
 
-    std::string FRAME = "/map";
+    std::string FRAME = "map";
     if (argc > 3) {
         FRAME = argv[3];
     }
@@ -97,7 +97,7 @@ int main(int argc, char** argv){
 
     ros::Rate r(10);
     ros::Time t_start = ros::Time::now();
-    while (ros::ok() && (ros::Time::now() - t_start).toSec() < TIME) 
+    while (ros::ok() && (ros::Time::now() - t_start).toSec() < TIME)
     {
         r.sleep();
     }

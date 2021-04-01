@@ -74,7 +74,7 @@ int main(int argc, char** argv){
     n.param("pan_vel", pan_vel, .5);
     n.param("tilt_vel", tilt_vel, .5);
     n.param("dt", dt, 2.0);
-    n.param("frame", frame, std::string("/base_link"));
+    n.param("frame", frame, std::string("base_link"));
 
     ROS_INFO("Cmd vel client on frame '%s' initialized on priority %d with velocity (%3f,%3f)", frame.c_str(), priority, pan_vel, tilt_vel);
 
