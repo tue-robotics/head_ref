@@ -361,7 +361,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
 bool HeadReference::getJointsInfo()
 {
   urdf::Model model;
-  if (!model.initParam(tf_prefix_ + "/robot_description"))
+  if (!model.initParam("robot_description"))
   {
     ROS_ERROR("Cannot get URDF model from the parameter server");
     return false;
