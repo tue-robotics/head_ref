@@ -3,11 +3,13 @@
 
 #include <geometry_msgs/Twist.h>
 
+#include <memory>
+
 typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
 
 #define PI 3.14159265
 
-HeadReferenceActionClient* ac;
+std::unique_ptr<HeadReferenceActionClient> ac;
 
 int priority;
 double pan_vel, tilt_vel, dt;
@@ -74,7 +76,7 @@ int main(int argc, char** argv){
 
     ros::Subscriber s = n.subscribe<geometry_msgs::Twist>("/cmd_vel", 1, &cmdVelCallback);
 
-    ac = new HeadReferenceActionClient("head_ref/action_server");
+    ac = std::unique_ptr<HeadReferenceActionClient>(new HeadReferenceActionClient("head_ref/action_server"));
 
     ros::spin();
 

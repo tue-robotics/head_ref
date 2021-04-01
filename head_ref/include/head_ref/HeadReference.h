@@ -16,6 +16,8 @@
 // tf
 #include <tf/transform_listener.h>
 
+#include <memory>
+
 typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenceActionServer;
 
 
@@ -83,14 +85,14 @@ class HeadReference
          */
         void publishReferences(head_ref_msgs::HeadReferenceGoal& goal);
 
-        HeadReferenceActionServer* as_;
-        std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
+        std::unique_ptr<HeadReferenceActionServer> as_;
+        std::vector<HeadReferenceActionServer::GoalHandle> goal_handles_;
 
         bool float_topics_;
         ros::Publisher head_pub_, pan_pub_, tilt_pub_, marker_pub_;
         ros::Subscriber measurement_sub_;
 
-        tf::TransformListener* tf_listener_;
+        std::unique_ptr<tf::TransformListener> tf_listener_;
 
         double current_pan_, current_tilt_, goal_error_tolerance_;
         

@@ -10,6 +10,8 @@ bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceAction
 
 
 HeadReference::HeadReference() :
+    as_(nullptr),
+    tf_listener_(nullptr),
     current_pan_(0),
     current_tilt_(0),
     goal_error_tolerance_(0.05)
@@ -19,15 +21,11 @@ HeadReference::HeadReference() :
     ros::NodeHandle gh;
 
     ROS_DEBUG("Constructing listener");
-    if (tf_listener_)
-            delete tf_listener_;
-    tf_listener_ = new tf::TransformListener(ros::Duration(10.0));
+    tf_listener_ = std::unique_ptr<tf::TransformListener>(new tf::TransformListener(ros::Duration(10.0)));
 
     // Setup action server
     ROS_DEBUG("Constructing action server");
-    if (as_)
-        delete as_;
-    as_ = new HeadReferenceActionServer(nh,"action_server",false);
+    as_ = std::unique_ptr<HeadReferenceActionServer>(new HeadReferenceActionServer(nh, "action_server", false));
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
     
@@ -74,11 +72,6 @@ HeadReference::HeadReference() :
 
 HeadReference::~HeadReference()
 {
-    if (as_)
-        delete as_;
-    if (tf_listener_)
-        delete tf_listener_;
-
 }
 
 void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
