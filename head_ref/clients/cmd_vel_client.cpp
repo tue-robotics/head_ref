@@ -3,6 +3,8 @@
 
 #include <geometry_msgs/Twist.h>
 
+#include <ros/ros.h>
+
 #include <memory>
 
 typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
@@ -32,10 +34,12 @@ void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
 
     //! When only turning
     if (tw->linear.y*tw->linear.y+tw->linear.x*tw->linear.x < 0.1*0.1)
+    {
         if (tw->angular.z > 0)
             th = .2*PI;
         else if (tw->angular.z < 0)
             th = -.2*PI;
+    }
 
     //! Limit -.5*PI till .5*PI
     th = std::max( -.5*PI , std::min (th, .5*PI) );

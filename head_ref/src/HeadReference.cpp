@@ -16,7 +16,7 @@ HeadReference::HeadReference() :
     current_tilt_(0),
     goal_error_tolerance_(0.05)
 {
-    ROS_DEBUG("Init node");
+    ROS_DEBUG("Init HeadReference");
     ros::NodeHandle nh("~");
     ros::NodeHandle gh;
 
@@ -48,7 +48,7 @@ HeadReference::HeadReference() :
 
     // ROS publishers
     ROS_DEBUG("Creating reference publisher");
-    if ( float_topics_ )
+    if (float_topics_)
     {
         pan_pub_ = gh.advertise<std_msgs::Float64>("pan_controller/command", 1);
         tilt_pub_ = gh.advertise<std_msgs::Float64>("tilt_controller/command", 1);
@@ -67,12 +67,13 @@ HeadReference::HeadReference() :
     // Start action server
     ROS_DEBUG("Starting action server");
     as_->start();
-
 }
+
 
 HeadReference::~HeadReference()
 {
 }
+
 
 void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
 {
@@ -91,6 +92,7 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
         }
     }
 }
+
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
@@ -119,11 +121,14 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     std::sort(goal_handles_.begin(),goal_handles_.end(),compByPriority);
 }
 
+
 void HeadReference::abortGoalWithSamePriority(unsigned int priority)
 {
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
-    for(; it != goal_handles_.end(); ++it) {
-        if (it->getGoal()->priority == priority) {
+    for(; it != goal_handles_.end(); ++it)
+    {
+        if (it->getGoal()->priority == priority)
+        {
             head_ref_msgs::HeadReferenceResult result;
             result.error = "Client with same priority registered.";
             ROS_DEBUG_STREAM("HR: Client with same priority " << priority << " registered. Aborting old client.");
@@ -133,6 +138,7 @@ void HeadReference::abortGoalWithSamePriority(unsigned int priority)
         }
     }
 }
+
 
 void HeadReference::checkTimeOuts()
 {
@@ -154,6 +160,7 @@ void HeadReference::checkTimeOuts()
     }
 }
 
+
 void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
     ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
@@ -162,8 +169,10 @@ void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = std::find(goal_handles_.begin(), goal_handles_.end(), gh);
 
     // Check if element exist (just for safety) and erase the element
-    if (it != goal_handles_.end()) { goal_handles_.erase(it); }
+    if (it != goal_handles_.end())
+        goal_handles_.erase(it);
 }
+
 
 void HeadReference::generateReferences()
 {
@@ -206,8 +215,8 @@ void HeadReference::generateReferences()
         head_ref_msgs::HeadReferenceFeedback fb;
         double pan_error = goal.pan - current_pan_;
         double tilt_error = goal.tilt - current_tilt_;
-        if (fabs(pan_error) < goal_error_tolerance_ && fabs(tilt_error) < goal_error_tolerance_) {
-
+        if (fabs(pan_error) < goal_error_tolerance_ && fabs(tilt_error) < goal_error_tolerance_)
+        {
             fb.at_setpoint = true;
             gh.publishFeedback(fb);
             return;
@@ -250,7 +259,6 @@ double HeadReference::limitReferences(const JointProps& props, double reference)
     return std::max(props.lower, std::min(props.upper, reference));
   }
   return reference;
-
 }
 
 
@@ -281,44 +289,55 @@ void HeadReference::publishReferences(head_ref_msgs::HeadReferenceGoal &goal)
 
       head_pub_.publish(head_ref);
   }
-
 }
 
 
 bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
 {
     tf::Stamped<tf::Point> target_HEAD_MOUNT;
-    try {
+    try
+    {
         tf_listener_->transformPoint(tf_prefix_+"/head_mount", target, target_HEAD_MOUNT);
-    } catch(tf::TransformException& ex){
+    }
+    catch(tf::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
     tf::Stamped<tf::Point> target_NECK_TILT;
-    try {
+    try
+    {
         tf_listener_->transformPoint(tf_prefix_+"/neck_tilt", target, target_NECK_TILT);
-    } catch(tf::TransformException& ex){
+    }
+    catch(tf::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
     double head_mount_to_neck;
-    try {
+    try
+    {
         tf::StampedTransform transform;
         tf_listener_->lookupTransform(tf_prefix_+"/head_mount", tf_prefix_+"/neck_tilt", ros::Time(), transform);
         head_mount_to_neck = transform.getOrigin().getX();
-    } catch(tf::TransformException& ex){
+    }
+    catch(tf::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
     double neck_to_cam_vert;
-    try {
+    try
+    {
         tf::StampedTransform transform;
         tf_listener_->lookupTransform(tf_prefix_+"/neck_tilt", tf_prefix_+"/top_kinect/openni_camera", ros::Time(), transform);
         neck_to_cam_vert = transform.getOrigin().getZ();
-    } catch(tf::TransformException& ex){
+    }
+    catch(tf::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
@@ -332,7 +351,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
     double head_mount_to_target_flat = sqrt(target_HEAD_MOUNT.getY() * target_HEAD_MOUNT.getY() + target_HEAD_MOUNT.getZ() * target_HEAD_MOUNT.getZ());
 
     double tilt_basic = -atan(target_to_neck_vert / head_mount_to_target_flat);
-    double tilt_camera_offset_correction =  asin(neck_to_cam_vert / neck_to_target);
+    double tilt_camera_offset_correction = asin(neck_to_cam_vert / neck_to_target);
 
     tilt = tilt_basic + tilt_camera_offset_correction;
 
@@ -356,7 +375,6 @@ bool HeadReference::getJointsInfo()
     return false;
 
   return true;
-
 }
 
 
@@ -364,7 +382,7 @@ bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
 {
   // Get joint info from urdf model
   urdf::JointConstSharedPtr joint_ptr = model.getJoint(props.name);
-  if (joint_ptr == NULL)
+  if (joint_ptr == nullptr)
   {
     ROS_ERROR_STREAM("Could not get joint '" << props.name << "' from the urdf model");
     return false;
@@ -396,8 +414,8 @@ bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
 }
 
 
-void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
-
+void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target)
+{
     //create marker object
     visualization_msgs::Marker marker;
 
@@ -438,10 +456,4 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
 
     // Publish the marker
     marker_pub_.publish(marker);
-
 }
-
-
-
-
-

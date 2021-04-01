@@ -2,6 +2,8 @@
 #include "head_ref_msgs/HeadReferenceAction.h"
 #include <geometry_msgs/Twist.h>
 
+#include <ros/ros.h>
+
 #include <memory>
 
 typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
