@@ -1,8 +1,6 @@
 #ifndef HEAD_REF_HEAD_REFERENCES_H_
 #define HEAD_REF_HEAD_REFERENCES_H_
 
-#define PI 3.14159265
-
 // ros
 #include <ros/ros.h>
 
