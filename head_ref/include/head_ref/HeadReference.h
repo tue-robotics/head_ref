@@ -97,9 +97,9 @@ class HeadReference
         double current_pan_, current_tilt_, goal_error_tolerance_;
         
         std::string tf_prefix_;
-        std::string frame_mount_;
-        std::string frame_neck_;
-        std::string frame_head_;
+        std::string frame_mount_ = "head_mount";
+        std::string frame_neck_ = "neck_tilt";
+        std::string frame_head_ = "top_kinect/openni_camera";
 
         /// Joint properties
         JointProps pan_joint_props_, tilt_joint_props_;
