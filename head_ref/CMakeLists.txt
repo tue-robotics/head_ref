@@ -12,7 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   std_msgs
-  tf
+  tf2
+  tf2_geometry_msgs
+  tf2_ros
   urdf
   visualization_msgs
 )
@@ -22,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
 ###################################
 catkin_package(
     INCLUDE_DIRS include
-    CATKIN_DEPENDS actionlib geometry_msgs sensor_msgs std_msgs visualization_msgs
+    CATKIN_DEPENDS actionlib geometry_msgs sensor_msgs std_msgs tf2_ros visualization_msgs
 )
 
 ###########

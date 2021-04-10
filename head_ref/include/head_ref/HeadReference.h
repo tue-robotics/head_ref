@@ -11,8 +11,8 @@
 #include <actionlib/server/action_server.h>
 #include <head_ref_msgs/HeadReferenceAction.h>
 
-// tf
-#include <tf/transform_listener.h>
+// tf2
+#include <tf2_ros/buffer.h>
 
 #include <memory>
 
@@ -24,6 +24,9 @@ namespace urdf
   class Model;  // Forward declare urdf model class
 }
 
+namespace tf2_ros {
+    class TransformListener; // Forward declare tf2_ros::TransformListener class
+}
 
 struct JointProps
 {
@@ -50,8 +53,8 @@ class HeadReference
 
         void abortGoalWithSamePriority(unsigned int priority);
 
-        bool targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt);
-        void publishMarker(const tf::Stamped<tf::Point>& target);
+        bool targetToPanTilt(const geometry_msgs::PointStamped& target, double& pan, double& tilt);
+        void publishMarker(const geometry_msgs::PointStamped& target);
 
         void checkTimeOuts();
 
@@ -90,7 +93,8 @@ class HeadReference
         ros::Publisher head_pub_, pan_pub_, tilt_pub_, marker_pub_;
         ros::Subscriber measurement_sub_;
 
-        std::unique_ptr<tf::TransformListener> tf_listener_;
+        tf2_ros::Buffer tf_buffer_;
+        std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
 
         double current_pan_, current_tilt_, goal_error_tolerance_;
         

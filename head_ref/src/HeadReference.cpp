@@ -3,6 +3,11 @@
 #include <urdf/model.h>
 #include <visualization_msgs/Marker.h>
 
+#include <tf2/transform_datatypes.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
+
 
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
@@ -11,6 +16,7 @@ bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceAction
 
 HeadReference::HeadReference() :
     as_(nullptr),
+    tf_buffer_(),
     tf_listener_(nullptr),
     current_pan_(0),
     current_tilt_(0),
@@ -21,7 +27,7 @@ HeadReference::HeadReference() :
     ros::NodeHandle gh;
 
     ROS_DEBUG("Constructing listener");
-    tf_listener_ = std::unique_ptr<tf::TransformListener>(new tf::TransformListener(ros::Duration(10.0)));
+    tf_listener_ = std::make_unique<tf2_ros::TransformListener>(tf_buffer_);
 
     // Setup action server
     ROS_DEBUG("Constructing action server");
@@ -105,20 +111,19 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
 
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
+    head_ref_msgs::HeadReferenceGoalConstPtr goal = gh.getGoal();
+
+    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) goal->priority);
 
     // ROBOCUP HACK
-    if (gh.getGoal()->goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE)
+    if (goal->goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE)
     {
         // Update pan and tilt
-        tf::Stamped<tf::Point> tp;
-        tf::pointStampedMsgToTF(gh.getGoal()->target_point,tp);
-        tp.stamp_ = ros::Time();
-        targetToPanTilt(tp, lookat_and_freeze_goal_.pan, lookat_and_freeze_goal_.tilt);
+        targetToPanTilt(goal->target_point, lookat_and_freeze_goal_.pan, lookat_and_freeze_goal_.tilt);
     }
 
     // abort goal with same priority
-    abortGoalWithSamePriority(gh.getGoal()->priority);
+    abortGoalWithSamePriority(goal->priority);
 
     // Accept the goal
     gh.setAccepted();
@@ -197,11 +202,9 @@ void HeadReference::generateReferences()
 
         if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT || goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE) {
             // Update pan and tilt
-            tf::Stamped<tf::Point> tp;
-            tf::pointStampedMsgToTF(goal.target_point,tp);
-            tp.stamp_ = ros::Time();
+            goal.target_point.header.stamp = ros::Time();
             double pan_goal, tilt_goal;
-            if (!targetToPanTilt(tp, pan_goal, tilt_goal))
+            if (!targetToPanTilt(goal.target_point, pan_goal, tilt_goal))
             {
               gh.setAborted();
               goal_handles_.erase (goal_handles_.begin(), goal_handles_.begin()+1);
@@ -212,7 +215,7 @@ void HeadReference::generateReferences()
               goal.pan = limitReferences(pan_joint_props_, pan_goal * pan_joint_props_.direction);
               goal.tilt = limitReferences(tilt_joint_props_, tilt_goal * tilt_joint_props_.direction);
             }
-            publishMarker(tp);
+            publishMarker(goal.target_point);
         }
         else if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::PAN_TILT)
         {
@@ -301,25 +304,25 @@ void HeadReference::publishReferences(head_ref_msgs::HeadReferenceGoal &goal)
 }
 
 
-bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
+bool HeadReference::targetToPanTilt(const geometry_msgs::PointStamped& target, double& pan, double& tilt)
 {
-    tf::Stamped<tf::Point> target_MOUNT;
+    tf2::Stamped<tf2::Vector3> target_MOUNT;
     try
     {
-        tf_listener_->transformPoint(frame_mount_, target, target_MOUNT);
+        tf_buffer_.transform(target, target_MOUNT, frame_mount_);
     }
-    catch(tf::TransformException& ex)
+    catch(tf2::TransformException& ex)
     {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
-    tf::Stamped<tf::Point> target_NECK;
+    tf2::Stamped<tf2::Vector3> target_NECK;
     try
     {
-        tf_listener_->transformPoint(frame_neck_, target, target_NECK);
+        tf_buffer_.transform(target, target_NECK, frame_neck_);
     }
-    catch(tf::TransformException& ex)
+    catch(tf2::TransformException& ex)
     {
         ROS_ERROR("%s", ex.what());
         return false;
@@ -328,11 +331,11 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
     double mount_to_neck;
     try
     {
-        tf::StampedTransform transform;
-        tf_listener_->lookupTransform(frame_mount_, frame_neck_, ros::Time(), transform);
-        mount_to_neck = transform.getOrigin().getX();
+        geometry_msgs::TransformStamped transform;
+        transform = tf_buffer_.lookupTransform(frame_mount_, frame_neck_, ros::Time());
+        mount_to_neck = transform.transform.translation.x;
     }
-    catch(tf::TransformException& ex)
+    catch(tf2::TransformException& ex)
     {
         ROS_ERROR("%s", ex.what());
         return false;
@@ -341,11 +344,11 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
     double neck_to_head_vert;
     try
     {
-        tf::StampedTransform transform;
-        tf_listener_->lookupTransform(frame_neck_, frame_head_, ros::Time(), transform);
-        neck_to_head_vert = transform.getOrigin().getZ();
+        geometry_msgs::TransformStamped transform;
+        transform = tf_buffer_.lookupTransform(frame_neck_, frame_head_, ros::Time());
+        neck_to_head_vert = transform.transform.translation.z;
     }
-    catch(tf::TransformException& ex)
+    catch(tf2::TransformException& ex)
     {
         ROS_ERROR("%s", ex.what());
         return false;
@@ -423,7 +426,7 @@ bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
 }
 
 
-void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target)
+void HeadReference::publishMarker(const geometry_msgs::PointStamped& target)
 {
     //create marker object
     visualization_msgs::Marker marker;
@@ -431,7 +434,7 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target)
     uint32_t shape = visualization_msgs::Marker::SPHERE;
 
     // Set the frame ID and timestamp.
-    marker.header.frame_id = target.frame_id_;
+    marker.header.frame_id = target.header.frame_id;
     marker.header.stamp = ros::Time::now();
 
     marker.ns = "head_target";
@@ -444,13 +447,8 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target)
     marker.action = visualization_msgs::Marker::ADD;
 
     // Set the pose of the marker.
-    marker.pose.position.x = target.getX();
-    marker.pose.position.y = target.getY();
-    marker.pose.position.z = target.getZ();
-    marker.pose.orientation.x = 0.0;
-    marker.pose.orientation.y = 0.0;
-    marker.pose.orientation.z = 0.0;
-    marker.pose.orientation.w = 1.0;
+    marker.pose.position = target.point;
+    marker.pose.orientation = tf2::toMsg(tf2::Quaternion::getIdentity());
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = 0.08;
