@@ -41,9 +41,6 @@ HeadReference::HeadReference() :
     n.param<std::string>("tf_prefix", tf_prefix_, "");
     n.param<std::string>("pan_joint_name", pan_joint_props_.name, "neck_pan_joint");
     n.param<std::string>("tilt_joint_name", tilt_joint_props_.name, "neck_tilt_joint");
-//    n.param<std::string>("frame_mount", frame_mount_, "head_mount");
-//    n.param<std::string>("frame_neck", frame_neck_, "neck_tilt");
-//    n.param<std::string>("frame_head", frame_head_, "top_kinect/openni_camera");
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
