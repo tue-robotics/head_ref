@@ -31,7 +31,7 @@ HeadReference::HeadReference() :
 
     // Setup action server
     ROS_DEBUG("Constructing action server");
-    as_ = std::unique_ptr<HeadReferenceActionServer>(new HeadReferenceActionServer(nh, "action_server", false));
+    as_ = std::make_unique<HeadReferenceActionServer>(nh, "action_server", false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
     
