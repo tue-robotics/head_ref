@@ -3,6 +3,11 @@
 #include <urdf/model.h>
 #include <visualization_msgs/Marker.h>
 
+#include <tf2/transform_datatypes.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
+
 
 bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceActionServer::GoalHandle b) {
     return a.getGoal()->priority < b.getGoal()->priority;
@@ -10,20 +15,23 @@ bool compByPriority(HeadReferenceActionServer::GoalHandle a, HeadReferenceAction
 
 
 HeadReference::HeadReference() :
+    as_(nullptr),
+    tf_buffer_(),
+    tf_listener_(nullptr),
     current_pan_(0),
     current_tilt_(0),
     goal_error_tolerance_(0.05)
 {
-    ROS_DEBUG("Init node");
+    ROS_DEBUG("Init HeadReference");
     ros::NodeHandle nh("~");
     ros::NodeHandle gh;
 
     ROS_DEBUG("Constructing listener");
-    tf_listener_ = new tf::TransformListener(ros::Duration(10.0));
+    tf_listener_ = std::make_unique<tf2_ros::TransformListener>(tf_buffer_);
 
     // Setup action server
     ROS_DEBUG("Constructing action server");
-    as_ = new HeadReferenceActionServer(nh,"action_server",false);
+    as_ = std::make_unique<HeadReferenceActionServer>(nh, "action_server", false);
     as_->registerGoalCallback(boost::bind(&HeadReference::goalCallback, this, _1));
     as_->registerCancelCallback(boost::bind(&HeadReference::cancelCallback, this, _1));
     
@@ -36,7 +44,13 @@ HeadReference::HeadReference() :
     n.param<double>("default_pan", default_pan_, 0);
     n.param<double>("default_tilt", default_tilt_, 0);
     n.param<bool>("float_topics", float_topics_, false);
-    tf_prefix_ = "/" + tf_prefix_;
+
+    if (!tf_prefix_.empty())
+    {
+        frame_mount_ = tf_prefix_ + "/" + frame_mount_;
+        frame_neck_ = tf_prefix_ + "/" + frame_neck_;
+        frame_head_ = tf_prefix_ + "/" + frame_head_;
+    }
 
     ROS_DEBUG("Getting joints info");
     if (!getJointsInfo())
@@ -46,7 +60,7 @@ HeadReference::HeadReference() :
 
     // ROS publishers
     ROS_DEBUG("Creating reference publisher");
-    if ( float_topics_ )
+    if (float_topics_)
     {
         pan_pub_ = gh.advertise<std_msgs::Float64>("pan_controller/command", 1);
         tilt_pub_ = gh.advertise<std_msgs::Float64>("tilt_controller/command", 1);
@@ -65,13 +79,13 @@ HeadReference::HeadReference() :
     // Start action server
     ROS_DEBUG("Starting action server");
     as_->start();
-
 }
+
 
 HeadReference::~HeadReference()
 {
-
 }
+
 
 void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
 {
@@ -91,22 +105,22 @@ void HeadReference::measurementCallBack(const sensor_msgs::JointState& msg)
     }
 }
 
+
 void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
 {
-    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) gh.getGoal()->priority);
+    head_ref_msgs::HeadReferenceGoalConstPtr goal = gh.getGoal();
+
+    ROS_DEBUG_STREAM("HR: Goal Callback of priority " << (int) goal->priority);
 
     // ROBOCUP HACK
-    if (gh.getGoal()->goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE)
+    if (goal->goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE)
     {
         // Update pan and tilt
-        tf::Stamped<tf::Point> tp;
-        tf::pointStampedMsgToTF(gh.getGoal()->target_point,tp);
-        tp.stamp_ = ros::Time();
-        targetToPanTilt(tp, lookat_and_freeze_goal_.pan, lookat_and_freeze_goal_.tilt);
+        targetToPanTilt(goal->target_point, lookat_and_freeze_goal_.pan, lookat_and_freeze_goal_.tilt);
     }
 
     // abort goal with same priority
-    abortGoalWithSamePriority(gh.getGoal()->priority);
+    abortGoalWithSamePriority(goal->priority);
 
     // Accept the goal
     gh.setAccepted();
@@ -118,11 +132,14 @@ void HeadReference::goalCallback(HeadReferenceActionServer::GoalHandle gh)
     std::sort(goal_handles_.begin(),goal_handles_.end(),compByPriority);
 }
 
+
 void HeadReference::abortGoalWithSamePriority(unsigned int priority)
 {
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = goal_handles_.begin();
-    for(; it != goal_handles_.end(); ++it) {
-        if (it->getGoal()->priority == priority) {
+    for(; it != goal_handles_.end(); ++it)
+    {
+        if (it->getGoal()->priority == priority)
+        {
             head_ref_msgs::HeadReferenceResult result;
             result.error = "Client with same priority registered.";
             ROS_DEBUG_STREAM("HR: Client with same priority " << priority << " registered. Aborting old client.");
@@ -132,6 +149,7 @@ void HeadReference::abortGoalWithSamePriority(unsigned int priority)
         }
     }
 }
+
 
 void HeadReference::checkTimeOuts()
 {
@@ -153,6 +171,7 @@ void HeadReference::checkTimeOuts()
     }
 }
 
+
 void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
 {
     ROS_DEBUG_STREAM("HR: Cancel callback with priority " << (int) gh.getGoal()->priority);
@@ -161,8 +180,10 @@ void HeadReference::cancelCallback(HeadReferenceActionServer::GoalHandle gh)
     std::vector<HeadReferenceActionServer::GoalHandle>::iterator it = std::find(goal_handles_.begin(), goal_handles_.end(), gh);
 
     // Check if element exist (just for safety) and erase the element
-    if (it != goal_handles_.end()) { goal_handles_.erase(it); }
+    if (it != goal_handles_.end())
+        goal_handles_.erase(it);
 }
+
 
 void HeadReference::generateReferences()
 {
@@ -178,11 +199,9 @@ void HeadReference::generateReferences()
 
         if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT || goal.goal_type == head_ref_msgs::HeadReferenceGoal::LOOKAT_AND_FREEZE) {
             // Update pan and tilt
-            tf::Stamped<tf::Point> tp;
-            tf::pointStampedMsgToTF(goal.target_point,tp);
-            tp.stamp_ = ros::Time();
+            goal.target_point.header.stamp = ros::Time();
             double pan_goal, tilt_goal;
-            if (!targetToPanTilt(tp, pan_goal, tilt_goal))
+            if (!targetToPanTilt(goal.target_point, pan_goal, tilt_goal))
             {
               gh.setAborted();
               goal_handles_.erase (goal_handles_.begin(), goal_handles_.begin()+1);
@@ -193,7 +212,7 @@ void HeadReference::generateReferences()
               goal.pan = limitReferences(pan_joint_props_, pan_goal * pan_joint_props_.direction);
               goal.tilt = limitReferences(tilt_joint_props_, tilt_goal * tilt_joint_props_.direction);
             }
-            publishMarker(tp);
+            publishMarker(goal.target_point);
         }
         else if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::PAN_TILT)
         {
@@ -205,8 +224,8 @@ void HeadReference::generateReferences()
         head_ref_msgs::HeadReferenceFeedback fb;
         double pan_error = goal.pan - current_pan_;
         double tilt_error = goal.tilt - current_tilt_;
-        if (fabs(pan_error) < goal_error_tolerance_ && fabs(tilt_error) < goal_error_tolerance_) {
-
+        if (fabs(pan_error) < goal_error_tolerance_ && fabs(tilt_error) < goal_error_tolerance_)
+        {
             fb.at_setpoint = true;
             gh.publishFeedback(fb);
             return;
@@ -249,7 +268,6 @@ double HeadReference::limitReferences(const JointProps& props, double reference)
     return std::max(props.lower, std::min(props.upper, reference));
   }
   return reference;
-
 }
 
 
@@ -280,58 +298,69 @@ void HeadReference::publishReferences(head_ref_msgs::HeadReferenceGoal &goal)
 
       head_pub_.publish(head_ref);
   }
-
 }
 
 
-bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt)
+bool HeadReference::targetToPanTilt(const geometry_msgs::PointStamped& target, double& pan, double& tilt)
 {
-    tf::Stamped<tf::Point> target_HEAD_MOUNT;
-    try {
-        tf_listener_->transformPoint(tf_prefix_+"/head_mount", target, target_HEAD_MOUNT);
-    } catch(tf::TransformException& ex){
+    tf2::Stamped<tf2::Vector3> target_MOUNT;
+    try
+    {
+        tf_buffer_.transform(target, target_MOUNT, frame_mount_);
+    }
+    catch(tf2::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
-    tf::Stamped<tf::Point> target_NECK_TILT;
-    try {
-        tf_listener_->transformPoint(tf_prefix_+"/neck_tilt", target, target_NECK_TILT);
-    } catch(tf::TransformException& ex){
+    tf2::Stamped<tf2::Vector3> target_NECK;
+    try
+    {
+        tf_buffer_.transform(target, target_NECK, frame_neck_);
+    }
+    catch(tf2::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
-    double head_mount_to_neck;
-    try {
-        tf::StampedTransform transform;
-        tf_listener_->lookupTransform(tf_prefix_+"/head_mount", tf_prefix_+"/neck_tilt", ros::Time(), transform);
-        head_mount_to_neck = transform.getOrigin().getX();
-    } catch(tf::TransformException& ex){
+    double mount_to_neck;
+    try
+    {
+        geometry_msgs::TransformStamped transform;
+        transform = tf_buffer_.lookupTransform(frame_mount_, frame_neck_, ros::Time());
+        mount_to_neck = transform.transform.translation.x;
+    }
+    catch(tf2::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
-    double neck_to_cam_vert;
-    try {
-        tf::StampedTransform transform;
-        tf_listener_->lookupTransform(tf_prefix_+"/neck_tilt", tf_prefix_+"/top_kinect/openni_camera", ros::Time(), transform);
-        neck_to_cam_vert = transform.getOrigin().getZ();
-    } catch(tf::TransformException& ex){
+    double neck_to_head_vert;
+    try
+    {
+        geometry_msgs::TransformStamped transform;
+        transform = tf_buffer_.lookupTransform(frame_neck_, frame_head_, ros::Time());
+        neck_to_head_vert = transform.transform.translation.z;
+    }
+    catch(tf2::TransformException& ex)
+    {
         ROS_ERROR("%s", ex.what());
         return false;
     }
 
-    pan = -atan2(target_HEAD_MOUNT.getY(), target_HEAD_MOUNT.getZ());
+    pan = -atan2(target_MOUNT.getY(), target_MOUNT.getZ());
 
-    double neck_to_target = target_NECK_TILT.length();
+    double neck_to_target = target_NECK.length();
 
-    double target_to_neck_vert = target_HEAD_MOUNT.getX() - head_mount_to_neck;
+    double target_to_neck_vert = target_MOUNT.getX() - mount_to_neck;
 
-    double head_mount_to_target_flat = sqrt(target_HEAD_MOUNT.getY() * target_HEAD_MOUNT.getY() + target_HEAD_MOUNT.getZ() * target_HEAD_MOUNT.getZ());
+    double head_mount_to_target_flat = sqrt(target_MOUNT.getY() * target_MOUNT.getY() + target_MOUNT.getZ() * target_MOUNT.getZ());
 
     double tilt_basic = -atan(target_to_neck_vert / head_mount_to_target_flat);
-    double tilt_camera_offset_correction =  asin(neck_to_cam_vert / neck_to_target);
+    double tilt_camera_offset_correction = asin(neck_to_head_vert / neck_to_target);
 
     tilt = tilt_basic + tilt_camera_offset_correction;
 
@@ -342,7 +371,7 @@ bool HeadReference::targetToPanTilt(const tf::Stamped<tf::Point>& target, double
 bool HeadReference::getJointsInfo()
 {
   urdf::Model model;
-  if (!model.initParam(tf_prefix_ + "/robot_description"))
+  if (!model.initParam("robot_description"))
   {
     ROS_ERROR("Cannot get URDF model from the parameter server");
     return false;
@@ -355,7 +384,6 @@ bool HeadReference::getJointsInfo()
     return false;
 
   return true;
-
 }
 
 
@@ -363,7 +391,7 @@ bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
 {
   // Get joint info from urdf model
   urdf::JointConstSharedPtr joint_ptr = model.getJoint(props.name);
-  if (joint_ptr == NULL)
+  if (joint_ptr == nullptr)
   {
     ROS_ERROR_STREAM("Could not get joint '" << props.name << "' from the urdf model");
     return false;
@@ -395,15 +423,15 @@ bool HeadReference::getJointInfo(const urdf::Model &model, JointProps &props)
 }
 
 
-void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
-
+void HeadReference::publishMarker(const geometry_msgs::PointStamped& target)
+{
     //create marker object
     visualization_msgs::Marker marker;
 
     uint32_t shape = visualization_msgs::Marker::SPHERE;
 
     // Set the frame ID and timestamp.
-    marker.header.frame_id = target.frame_id_;
+    marker.header.frame_id = target.header.frame_id;
     marker.header.stamp = ros::Time::now();
 
     marker.ns = "head_target";
@@ -416,13 +444,8 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
     marker.action = visualization_msgs::Marker::ADD;
 
     // Set the pose of the marker.
-    marker.pose.position.x = target.getX();
-    marker.pose.position.y = target.getY();
-    marker.pose.position.z = target.getZ();
-    marker.pose.orientation.x = 0.0;
-    marker.pose.orientation.y = 0.0;
-    marker.pose.orientation.z = 0.0;
-    marker.pose.orientation.w = 1.0;
+    marker.pose.position = target.point;
+    marker.pose.orientation = tf2::toMsg(tf2::Quaternion::getIdentity());
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = 0.08;
@@ -437,10 +460,4 @@ void HeadReference::publishMarker(const tf::Stamped<tf::Point>& target) {
 
     // Publish the marker
     marker_pub_.publish(marker);
-
 }
-
-
-
-
-

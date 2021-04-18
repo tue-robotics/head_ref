@@ -2,11 +2,15 @@
 #include "head_ref_msgs/HeadReferenceAction.h"
 #include <geometry_msgs/Twist.h>
 
+#include <ros/ros.h>
+
+#include <memory>
+
 typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
 
 #define PI 3.14159265
 
-HeadReferenceActionClient* ac;
+std::unique_ptr<HeadReferenceActionClient> ac;
 
 int priority;
 double duration, pan_vel, tilt_vel, cmd_vel_timeout;
@@ -102,7 +106,7 @@ int main(int argc, char** argv){
         {
             ros::Timer timer = n.createTimer(ros::Duration(duration), lookAtCallback);
 
-            ac = new HeadReferenceActionClient("head_ref/action_server");
+            ac = std::unique_ptr<HeadReferenceActionClient>(new HeadReferenceActionClient("head_ref/action_server"));
 
             ros::spin();
         }
@@ -115,7 +119,7 @@ int main(int argc, char** argv){
     {
         ros::Timer timer = n.createTimer(ros::Duration(duration), panTiltCallback);
 
-        ac = new HeadReferenceActionClient("head_ref/action_server");
+        ac = std::unique_ptr<HeadReferenceActionClient>(new HeadReferenceActionClient("head_ref/action_server"));
 
         ros::spin();
     }

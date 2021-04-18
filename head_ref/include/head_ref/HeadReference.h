@@ -1,8 +1,6 @@
 #ifndef HEAD_REF_HEAD_REFERENCES_H_
 #define HEAD_REF_HEAD_REFERENCES_H_
 
-#define PI 3.14159265
-
 // ros
 #include <ros/ros.h>
 
@@ -13,8 +11,10 @@
 #include <actionlib/server/action_server.h>
 #include <head_ref_msgs/HeadReferenceAction.h>
 
-// tf
-#include <tf/transform_listener.h>
+// tf2
+#include <tf2_ros/buffer.h>
+
+#include <memory>
 
 typedef actionlib::ActionServer<head_ref_msgs::HeadReferenceAction> HeadReferenceActionServer;
 
@@ -24,6 +24,9 @@ namespace urdf
   class Model;  // Forward declare urdf model class
 }
 
+namespace tf2_ros {
+    class TransformListener; // Forward declare tf2_ros::TransformListener class
+}
 
 struct JointProps
 {
@@ -50,8 +53,8 @@ class HeadReference
 
         void abortGoalWithSamePriority(unsigned int priority);
 
-        bool targetToPanTilt(const tf::Stamped<tf::Point>& target, double& pan, double& tilt);
-        void publishMarker(const tf::Stamped<tf::Point>& target);
+        bool targetToPanTilt(const geometry_msgs::PointStamped& target, double& pan, double& tilt);
+        void publishMarker(const geometry_msgs::PointStamped& target);
 
         void checkTimeOuts();
 
@@ -83,18 +86,22 @@ class HeadReference
          */
         void publishReferences(head_ref_msgs::HeadReferenceGoal& goal);
 
-        HeadReferenceActionServer* as_;
-        std::vector < HeadReferenceActionServer::GoalHandle > goal_handles_;
+        std::unique_ptr<HeadReferenceActionServer> as_;
+        std::vector<HeadReferenceActionServer::GoalHandle> goal_handles_;
 
         bool float_topics_;
         ros::Publisher head_pub_, pan_pub_, tilt_pub_, marker_pub_;
         ros::Subscriber measurement_sub_;
 
-        tf::TransformListener* tf_listener_;
+        tf2_ros::Buffer tf_buffer_;
+        std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
 
         double current_pan_, current_tilt_, goal_error_tolerance_;
         
         std::string tf_prefix_;
+        std::string frame_mount_ = "head_mount";
+        std::string frame_neck_ = "neck_tilt";
+        std::string frame_head_ = "top_kinect/openni_camera";
 
         /// Joint properties
         JointProps pan_joint_props_, tilt_joint_props_;

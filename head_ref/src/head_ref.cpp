@@ -1,7 +1,9 @@
 #include "head_ref/HeadReference.h"
 
-int main(int argc, char** argv){
+#include <ros/ros.h>
 
+int main(int argc, char** argv)
+{
     ros::init(argc, argv, "head_ref_action_server");
     ros::NodeHandle nh;
 

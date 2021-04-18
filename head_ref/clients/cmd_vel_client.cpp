@@ -3,11 +3,15 @@
 
 #include <geometry_msgs/Twist.h>
 
+#include <ros/ros.h>
+
+#include <memory>
+
 typedef actionlib::ActionClient<head_ref_msgs::HeadReferenceAction> HeadReferenceActionClient;
 
 #define PI 3.14159265
 
-HeadReferenceActionClient* ac;
+std::unique_ptr<HeadReferenceActionClient> ac;
 
 int priority;
 double pan_vel, tilt_vel, dt;
@@ -30,10 +34,12 @@ void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
 
     //! When only turning
     if (tw->linear.y*tw->linear.y+tw->linear.x*tw->linear.x < 0.1*0.1)
+    {
         if (tw->angular.z > 0)
             th = .2*PI;
         else if (tw->angular.z < 0)
             th = -.2*PI;
+    }
 
     //! Limit -.5*PI till .5*PI
     th = std::max( -.5*PI , std::min (th, .5*PI) );
@@ -68,13 +74,13 @@ int main(int argc, char** argv){
     n.param("pan_vel", pan_vel, .5);
     n.param("tilt_vel", tilt_vel, .5);
     n.param("dt", dt, 2.0);
-    n.param("frame", frame, std::string("/base_link"));
+    n.param("frame", frame, std::string("base_link"));
 
     ROS_INFO("Cmd vel client on frame '%s' initialized on priority %d with velocity (%3f,%3f)", frame.c_str(), priority, pan_vel, tilt_vel);
 
     ros::Subscriber s = n.subscribe<geometry_msgs::Twist>("/cmd_vel", 1, &cmdVelCallback);
 
-    ac = new HeadReferenceActionClient("head_ref/action_server");
+    ac = std::unique_ptr<HeadReferenceActionClient>(new HeadReferenceActionClient("head_ref/action_server"));
 
     ros::spin();
 
