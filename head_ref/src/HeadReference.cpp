@@ -216,8 +216,8 @@ void HeadReference::generateReferences()
         }
         else if (goal.goal_type == head_ref_msgs::HeadReferenceGoal::PAN_TILT)
         {
-          goal.pan = limitReferences(pan_joint_props_, goal.pan);
-          goal.tilt = limitReferences(tilt_joint_props_, goal.tilt);
+          goal.pan = limitReferences(pan_joint_props_, goal.pan * pan_joint_props_.direction);
+          goal.tilt = limitReferences(tilt_joint_props_, goal.tilt * tilt_joint_props_.direction);
         }
 
         // Check whether we are there
@@ -251,6 +251,8 @@ void HeadReference::generateReferences()
     {
         goal = lookat_and_freeze_goal_;
         goal.goal_type = head_ref_msgs::HeadReferenceGoal::PAN_TILT;
+        goal.pan = limitReferences(pan_joint_props_, goal.pan * pan_joint_props_.direction);
+        goal.tilt = limitReferences(tilt_joint_props_, goal.tilt * tilt_joint_props_.direction);
         goal.tilt_vel = 1.0;
         goal.pan_vel = 1.0;
     }
