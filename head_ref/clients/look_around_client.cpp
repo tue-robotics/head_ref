@@ -22,12 +22,12 @@ ros::Time last_cmd_vel;
 
 HeadReferenceActionClient::GoalHandle gh;
 
-void cmdVelCallback(const geometry_msgs::TwistConstPtr& tw)
+void cmdVelCallback(const geometry_msgs::TwistConstPtr& /*tw*/)
 {
     last_cmd_vel = ros::Time::now();
 }
 
-void panTiltCallback(const ros::TimerEvent& e)
+void panTiltCallback(const ros::TimerEvent& /*e*/)
 {
     if ((ros::Time::now() - last_cmd_vel).toSec() < cmd_vel_timeout)
     {
@@ -53,7 +53,7 @@ void panTiltCallback(const ros::TimerEvent& e)
         state+=1;
 }
 
-void lookAtCallback(const ros::TimerEvent& e)
+void lookAtCallback(const ros::TimerEvent& /*e*/)
 {
     if ((ros::Time::now() - last_cmd_vel).toSec() < cmd_vel_timeout)
     {
